@@ -1,0 +1,113 @@
+import { getAIConfig } from "@/lib/ai/config";
+import { LLMError } from "@/lib/ai/errors";
+import { parseJSONFromMessage } from "@/lib/ai/parse-json";
+
+export { LLMError } from "@/lib/ai/errors";
+
+interface ChatCompletionOptions {
+  system: string;
+  user: string;
+  temperature?: number;
+  maxTokens?: number;
+}
+
+interface ChatMessage {
+  content?: string | null;
+  reasoning_content?: string | null;
+}
+
+export async function chatCompletionJSON<T>(options: ChatCompletionOptions): Promise<T> {
+  try {
+    return await requestChatCompletionJSON<T>(options);
+  } catch (error) {
+    if (error instanceof LLMError) throw error;
+    throw new LLMError(error instanceof Error ? error.message : "大模型请求异常");
+  }
+}
+
+async function requestChatCompletionJSON<T>(options: ChatCompletionOptions): Promise<T> {
+  const config = getAIConfig();
+  if (!config.apiKey) throw new LLMError("未配置 LLM_API_KEY");
+
+  const data = await callChatCompletions(config, options);
+  const choice = data.choices?.[0];
+  const contents = extractMessageContents(choice?.message);
+
+  try {
+    return parseJSONFromMessage<T>(contents);
+  } catch (parseError) {
+    const raw = contents.join("\n\n");
+    if (!raw) throw new LLMError("大模型返回内容为空");
+
+    const fixed = await callChatCompletions(config, {
+      ...options,
+      temperature: 0,
+      system: "你是 JSON 修复器。将输入修复为合法 JSON，只输出 JSON，不要任何解释。",
+      user: `修复以下 JSON：\n${raw.slice(0, 14000)}`,
+    });
+
+    const fixedContents = extractMessageContents(fixed.choices?.[0]?.message);
+    try {
+      return parseJSONFromMessage<T>(fixedContents);
+    } catch {
+      if (choice?.finish_reason === "length") {
+        throw new LLMError("大模型输出被截断，请缩短 JD/简历内容后重试");
+      }
+      throw parseError instanceof LLMError ? parseError : new LLMError("大模型返回的 JSON 无法解析");
+    }
+  }
+}
+
+async function callChatCompletions(
+  config: ReturnType<typeof getAIConfig>,
+  options: ChatCompletionOptions
+) {
+  const response = await fetch(`${config.baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: config.model,
+      temperature: options.temperature ?? 0.3,
+      max_tokens: options.maxTokens ?? 8192,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: options.system },
+        { role: "user", content: options.user },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new LLMError(
+      detail
+        ? `大模型请求失败 (${response.status}): ${detail.slice(0, 300)}`
+        : `大模型请求失败 (${response.status})`,
+      response.status
+    );
+  }
+
+  return (await response.json()) as {
+    choices?: Array<{
+      finish_reason?: string;
+      message?: ChatMessage;
+    }>;
+  };
+}
+
+function extractMessageContents(message?: ChatMessage): string[] {
+  const results: string[] = [];
+  const content = message?.content?.trim();
+  if (content) results.push(content);
+
+  const reasoning = message?.reasoning_content?.trim();
+  if (reasoning) {
+    const jsonMatch = reasoning.match(/\{[\s\S]*\}/);
+    if (jsonMatch?.[0]) results.push(jsonMatch[0]);
+  }
+
+  return results;
+}

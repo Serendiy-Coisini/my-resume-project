@@ -1,32 +1,47 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, Loader2, Sparkles } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Loader2, Sparkles, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState, SectionTitle } from "@/components/shared/ui-helpers";
-import { generateFollowUpBullet } from "@/services/ai/resumeAgent";
+import { applyFollowUpBullets, generateFollowUpBullet } from "@/services/ai/resumeAgent";
 import { useResumeStore } from "@/store/resume-store";
 
 export function FollowUpStep() {
   const {
     analysisResult,
     userInput,
+    optimizeStyle,
     updateFollowUpAnswer,
     setFollowUpBullet,
+    setAnalysisResult,
     setCurrentStep,
   } = useResumeStore();
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false);
+  const [applied, setApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!analysisResult) {
-    return <EmptyState message="请先完成输入材料并开始分析" />;
+    return (
+      <EmptyState
+        message="请先完成输入材料并开始分析"
+        actionLabel="返回输入材料"
+        onAction={() => setCurrentStep("input")}
+      />
+    );
   }
 
   const { followUpQuestions } = analysisResult;
+
+  // Collect all non-empty generated bullets
+  const generatedBullets = followUpQuestions
+    .filter((q) => q.generatedBullet.trim())
+    .map((q) => ({ purpose: q.purpose, bullet: q.generatedBullet }));
 
   const handleGenerateBullet = async (id: string) => {
     const question = followUpQuestions.find((q) => q.id === id);
@@ -34,6 +49,7 @@ export function FollowUpStep() {
 
     setLoadingId(id);
     setError(null);
+    setApplied(false);
     try {
       const bullet = await generateFollowUpBullet(
         userInput,
@@ -46,6 +62,29 @@ export function FollowUpStep() {
       setError(err instanceof Error ? err.message : "Bullet 生成失败");
     } finally {
       setLoadingId(null);
+    }
+  };
+
+  const handleApplyBullets = async () => {
+    if (!generatedBullets.length) return;
+    setApplying(true);
+    setError(null);
+    try {
+      const { optimizedItems, finalResume } = await applyFollowUpBullets(
+        userInput,
+        optimizeStyle,
+        generatedBullets
+      );
+      setAnalysisResult({
+        ...analysisResult,
+        optimizedItems,
+        finalResume,
+      });
+      setApplied(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "应用追问结果失败");
+    } finally {
+      setApplying(false);
     }
   };
 
@@ -120,7 +159,50 @@ export function FollowUpStep() {
         ))}
       </div>
 
-      <div className="flex justify-end">
+      {/* Apply bullets to resume */}
+      {generatedBullets.length > 0 && (
+        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50/50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-blue-900">
+                已生成 {generatedBullets.length} 条 bullet
+              </p>
+              <p className="text-xs text-blue-700">
+                点击应用后，追问补充的经历将融入简历优化和最终简历中
+              </p>
+            </div>
+            <Button
+              size="sm"
+              disabled={applying}
+              onClick={handleApplyBullets}
+              className={applied ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+            >
+              {applying ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  应用中...
+                </>
+              ) : applied ? (
+                <>
+                  <Check className="h-3.5 w-3.5" />
+                  已应用到简历
+                </>
+              ) : (
+                <>
+                  <Wand2 className="h-3.5 w-3.5" />
+                  应用到简历
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-between">
+        <Button variant="outline" size="sm" onClick={() => setCurrentStep("match")}>
+          <ChevronLeft className="h-4 w-4" />
+          上一步：匹配分析
+        </Button>
         <Button variant="outline" size="sm" onClick={() => setCurrentStep("optimize")}>
           下一步：简历优化
           <ChevronRight className="h-4 w-4" />

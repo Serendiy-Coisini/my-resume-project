@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { renderTemplateHTML, type TemplateId } from "./resume-templates";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -53,4 +54,95 @@ export function formatResumeAsText(resume: import("@/types/resume").FinalResume)
   lines.push(`${resume.education.school} | ${resume.education.degree} | ${resume.education.period}`);
 
   return lines.join("\n");
+}
+
+export function exportResumeAsWord(
+  resume: import("@/types/resume").FinalResume,
+  templateId: TemplateId = "modern-sidebar",
+  customTemplateHTML?: string
+) {
+  const innerHtml = renderTemplateHTML(resume, templateId, customTemplateHTML);
+  const htmlContent = `
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    ${innerHtml}
+    </html>
+  `;
+
+  const blob = new Blob(["\ufeff" + htmlContent], {
+    type: "application/msword;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${resume.personalInfo.name}_个人简历.doc`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function exportResumeAsPDF(
+  resume: import("@/types/resume").FinalResume,
+  templateId: TemplateId = "modern-sidebar",
+  customTemplateHTML?: string
+) {
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) return;
+
+  const htmlContent = renderTemplateHTML(resume, templateId, customTemplateHTML);
+  const printStyle = `
+    <style>
+      @page {
+        size: A4;
+        margin: 8mm !important;
+      }
+      @media print {
+        html, body {
+          height: auto !important;
+          min-height: auto !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: visible !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        body > *:last-child,
+        div:last-child,
+        p:last-child,
+        .card-box:last-child {
+          margin-bottom: 0 !important;
+          padding-bottom: 0 !important;
+        }
+      }
+    </style>
+  `;
+
+  const printScript = `
+    <script>
+      window.addEventListener('load', function() {
+        var imgs = document.getElementsByTagName('img');
+        var promises = [];
+        for (var i = 0; i < imgs.length; i++) {
+          if (!imgs[i].complete) {
+            promises.push(new Promise(function(resolve) {
+              imgs[i].onload = resolve;
+              imgs[i].onerror = resolve;
+            }));
+          }
+        }
+        Promise.all(promises).then(function() {
+          setTimeout(function() {
+            window.print();
+          }, 350);
+        });
+      });
+    </script>
+  `;
+
+  const contentWithPrint = htmlContent
+    .replace("</head>", `${printStyle}</head>`)
+    .replace("</body>", `${printScript}</body>`);
+
+  printWindow.document.write(contentWithPrint);
+  printWindow.document.close();
 }

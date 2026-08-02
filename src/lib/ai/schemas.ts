@@ -1,0 +1,184 @@
+/**
+ * Zod schemas for validating LLM response JSON.
+ *
+ * Design: every leaf field uses `.catch(default)` so that missing or
+ * wrong-typed fields are silently replaced with safe defaults instead
+ * of throwing. This makes the schemas maximally lenient — they coerce
+ * partial / malformed LLM output into a valid structure.
+ */
+
+import { z } from "zod";
+
+// ---------------------------------------------------------------------------
+// Atomic helpers
+// ---------------------------------------------------------------------------
+
+/** Score clamped to [0, 100]. */
+const scoreSchema = z.coerce
+  .number()
+  .transform((v) => Math.max(0, Math.min(100, Math.round(v))))
+  .catch(0);
+
+const importanceSchema = z.enum(["high", "medium", "low"]).catch("medium");
+
+const evidenceStrengthSchema = z
+  .enum(["strong", "medium", "weak", "none"])
+  .catch("none");
+
+// ---------------------------------------------------------------------------
+// Component schemas
+// ---------------------------------------------------------------------------
+
+const coreCompetencySchema = z.object({
+  name: z.string().catch(""),
+  importance: importanceSchema,
+  description: z.string().catch(""),
+});
+
+const jdAnalysisObjectSchema = z.object({
+  responsibilities: z.array(z.string().catch("")).catch([]),
+  hardRequirements: z.array(z.string().catch("")).catch([]),
+  implicitRequirements: z.array(z.string().catch("")).catch([]),
+  keywords: z.array(z.string().catch("")).catch([]),
+  idealCandidate: z.string().catch(""),
+  coreCompetencies: z.array(coreCompetencySchema).catch([]),
+});
+
+const dimensionScoreSchema = z.object({
+  dimension: z.string().catch(""),
+  score: scoreSchema,
+  comment: z.string().catch(""),
+});
+
+const diagnosisObjectSchema = z.object({
+  overallScore: scoreSchema,
+  dimensionScores: z.array(dimensionScoreSchema).catch([]),
+  mainIssues: z.array(z.string().catch("")).catch([]),
+  prioritySuggestions: z.array(z.string().catch("")).catch([]),
+});
+
+const matchItemSchema = z.object({
+  jdRequirement: z.string().catch(""),
+  resumeEvidence: z.string().catch(""),
+  evidenceStrength: evidenceStrengthSchema,
+  needsSupplement: z.boolean().catch(false),
+  optimizationSuggestion: z.string().catch(""),
+});
+
+const followUpQuestionSchema = z.object({
+  id: z.string().catch(""),
+  question: z.string().catch(""),
+  purpose: z.string().catch(""),
+  userAnswer: z.string().catch(""),
+  generatedBullet: z.string().catch(""),
+});
+
+const optimizedItemSchema = z.object({
+  id: z.string().catch(""),
+  section: z.string().catch(""),
+  before: z.string().catch(""),
+  after: z.string().catch(""),
+  reason: z.string().catch(""),
+  riskWarning: z.string().catch(""),
+});
+
+const workExperienceSchema = z.object({
+  company: z.string().catch(""),
+  role: z.string().catch(""),
+  period: z.string().catch(""),
+  bullets: z.array(z.string().catch("")).catch([]),
+});
+
+const projectExperienceSchema = z.object({
+  name: z.string().catch(""),
+  role: z.string().catch(""),
+  period: z.string().catch(""),
+  bullets: z.array(z.string().catch("")).catch([]),
+});
+
+const educationSchema = z.object({
+  school: z.string().catch(""),
+  degree: z.string().catch(""),
+  period: z.string().catch(""),
+});
+
+const personalInfoSchema = z.object({
+  name: z.string().catch(""),
+  email: z.string().catch(""),
+  phone: z.string().catch(""),
+  location: z.string().catch(""),
+});
+
+const finalResumeObjectSchema = z.object({
+  personalInfo: personalInfoSchema.catch({ name: "", email: "", phone: "", location: "" }),
+  jobIntent: z.string().catch(""),
+  summary: z.string().catch(""),
+  coreSkills: z.array(z.string().catch("")).catch([]),
+  workExperience: z.array(workExperienceSchema).catch([]),
+  projectExperience: z.array(projectExperienceSchema).catch([]),
+  skillsAndTools: z.array(z.string().catch("")).catch([]),
+  education: educationSchema.catch({ school: "", degree: "", period: "" }),
+});
+
+const interviewQuestionSchema = z.object({
+  question: z.string().catch(""),
+  suggestedAnswer: z.string().catch(""),
+  evidenceNeeded: z.array(z.string().catch("")).catch([]),
+});
+
+const interviewPrepObjectSchema = z.object({
+  likelyQuestions: z.array(interviewQuestionSchema).catch([]),
+  evidenceToPrepare: z.array(z.string().catch("")).catch([]),
+  possibleExaggerations: z.array(z.string().catch("")).catch([]),
+  dataToSupplement: z.array(z.string().catch("")).catch([]),
+  selfIntroduction: z.string().catch(""),
+});
+
+// ---------------------------------------------------------------------------
+// Response schemas — one per LLM call
+// ---------------------------------------------------------------------------
+
+/** Step 1: JD analysis. */
+export const jdAnalysisResponseSchema = z
+  .object({
+    jdAnalysis: jdAnalysisObjectSchema,
+  })
+  .passthrough();
+
+/** Step 2: Diagnosis + match + follow-up questions. */
+export const diagnosisMatchResponseSchema = z
+  .object({
+    diagnosis: diagnosisObjectSchema,
+    matchItems: z.array(matchItemSchema).catch([]),
+    followUpQuestions: z.array(followUpQuestionSchema).catch([]),
+  })
+  .passthrough();
+
+/** Step 3: Optimized items + final resume. */
+export const optimizeResumeResponseSchema = z
+  .object({
+    optimizedItems: z.array(optimizedItemSchema).catch([]),
+    finalResume: finalResumeObjectSchema,
+  })
+  .passthrough();
+
+/** Step 4: Interview preparation. */
+export const interviewResponseSchema = z
+  .object({
+    interviewPrep: interviewPrepObjectSchema,
+  })
+  .passthrough();
+
+/** Re-optimize (style change). */
+export const optimizedItemsResponseSchema = z
+  .object({
+    optimizedItems: z.array(optimizedItemSchema).catch([]),
+  })
+  .passthrough();
+
+/** Single bullet generation. */
+export const bulletResponseSchema = z
+  .object({
+    bullet: z.string().catch(""),
+  })
+  .passthrough();

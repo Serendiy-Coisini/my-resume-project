@@ -1,5 +1,6 @@
 import type { EvidenceStrength } from "@/types/resume";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 const STRENGTH_CONFIG: Record<
   EvidenceStrength,
@@ -85,10 +86,23 @@ export function KeywordTags({ keywords }: { keywords: string[] }) {
   );
 }
 
-export function EmptyState({ message }: { message: string }) {
+export function EmptyState({
+  message,
+  actionLabel,
+  onAction,
+}: {
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
   return (
-    <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-neutral-200 bg-neutral-50/50">
+    <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-neutral-200 bg-neutral-50/50">
       <p className="text-sm text-neutral-500">{message}</p>
+      {actionLabel && onAction && (
+        <Button variant="outline" size="sm" onClick={onAction}>
+          {actionLabel}
+        </Button>
+      )}
     </div>
   );
 }

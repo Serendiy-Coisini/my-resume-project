@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,7 +39,13 @@ export function OptimizeStep() {
   const [optimizeError, setOptimizeError] = useState<string | null>(null);
 
   if (!analysisResult) {
-    return <EmptyState message="请先完成输入材料并开始分析" />;
+    return (
+      <EmptyState
+        message="请先完成输入材料并开始分析"
+        actionLabel="返回输入材料"
+        onAction={() => setCurrentStep("input")}
+      />
+    );
   }
 
   const handleStyleChange = async (style: OptimizeStyle) => {
@@ -125,9 +131,13 @@ export function OptimizeStep() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
-        <Button variant="outline" size="sm" onClick={() => setCurrentStep("final-resume")}>
-          下一步：最终简历
+      <div className="flex justify-between">
+        <Button variant="outline" size="sm" onClick={() => setCurrentStep("follow-up")}>
+          <ChevronLeft className="h-4 w-4" />
+          上一步：经历追问
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setCurrentStep("interview")}>
+          下一步：面试准备
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>

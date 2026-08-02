@@ -49,3 +49,15 @@ export interface FollowUpBulletResponseBody {
   bullet: string;
   mode: AIMode;
 }
+
+export interface ApplyFollowUpRequestBody {
+  input: import("@/types/resume").UserInput;
+  style: import("@/types/resume").OptimizeStyle;
+  bullets: { purpose: string; bullet: string }[];
+}
+
+export interface ApplyFollowUpResponseBody {
+  optimizedItems: import("@/types/resume").OptimizedItem[];
+  finalResume: import("@/types/resume").AnalysisResult["finalResume"];
+  mode: AIMode;
+}

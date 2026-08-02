@@ -7,7 +7,6 @@ import { DiagnosisStep } from "@/components/steps/diagnosis-step";
 import { MatchStep } from "@/components/steps/match-step";
 import { FollowUpStep } from "@/components/steps/follow-up-step";
 import { OptimizeStep } from "@/components/steps/optimize-step";
-import { FinalResumeStep } from "@/components/steps/final-resume-step";
 import { InterviewStep } from "@/components/steps/interview-step";
 import { ExportStep } from "@/components/steps/export-step";
 
@@ -27,8 +26,6 @@ export function StepContent() {
       return <FollowUpStep />;
     case "optimize":
       return <OptimizeStep />;
-    case "final-resume":
-      return <FinalResumeStep />;
     case "interview":
       return <InterviewStep />;
     case "export":

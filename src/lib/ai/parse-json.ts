@@ -1,6 +1,7 @@
+import type { ZodType } from "zod";
 import { LLMError } from "@/lib/ai/errors";
 
-export function parseJSONContent<T>(content: string): T {
+export function parseJSONContent<T>(content: string, schema?: ZodType<T>): T {
   const candidates = collectJsonCandidates(content);
 
   for (const candidate of candidates) {
@@ -13,7 +14,8 @@ export function parseJSONContent<T>(content: string): T {
 
     for (const variant of variants) {
       try {
-        return JSON.parse(variant) as T;
+        const parsed = JSON.parse(variant);
+        return schema ? schema.parse(parsed) : (parsed as T);
       } catch {
         // try next variant
       }
@@ -88,18 +90,18 @@ function repairJson(json: string): string {
   return repaired;
 }
 
-export function parseJSONFromMessage<T>(contents: string[]): T {
+export function parseJSONFromMessage<T>(contents: string[], schema?: ZodType<T>): T {
   const merged = contents.filter(Boolean).join("\n");
   if (!merged) throw new LLMError("大模型返回内容为空");
 
   for (const content of contents) {
     if (!content) continue;
     try {
-      return parseJSONContent<T>(content);
+      return parseJSONContent<T>(content, schema);
     } catch {
       // try next segment
     }
   }
 
-  return parseJSONContent<T>(merged);
+  return parseJSONContent<T>(merged, schema);
 }

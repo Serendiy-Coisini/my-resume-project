@@ -1,10 +1,11 @@
 "use client";
 
-import { Loader2, Sparkles, Wand2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { Camera, FileUp, Loader2, Sparkles, User, Wand2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -12,10 +13,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { SectionTitle } from "@/components/shared/ui-helpers";
-import { useResumeStore } from "@/store/resume-store";
 import { runResumeAnalysis } from "@/services/ai/resumeAgent";
+import { useResumeStore } from "@/store/resume-store";
 import type { CompanyType, JobStage } from "@/types/resume";
 
 export function InputStep() {
@@ -23,29 +24,137 @@ export function InputStep() {
     userInput,
     setUserInput,
     loadExampleData,
+    setAnalysisResult,
+    setAnalyzing,
+    setAnalysisError,
     isAnalyzing,
     analysisError,
-    setAnalyzing,
-    setAnalysisResult,
-    setAnalysisError,
     setCurrentStep,
   } = useResumeStore();
+
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const dragCounter = useRef(0);
+
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      if (base64) {
+        setUserInput({ avatarUrl: base64 });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const processPdfFile = async (file: File) => {
+    if (file.type !== "application/pdf" && !file.name.endsWith(".pdf")) {
+      setPdfError("仅支持上传 PDF 格式文件 (.pdf)");
+      return;
+    }
+
+    setUploadingPdf(true);
+    setPdfError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/parse-pdf", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "解析 PDF 失败");
+      }
+
+      setUserInput({ originalResume: data.text });
+    } catch (err) {
+      setPdfError(err instanceof Error ? err.message : "解析 PDF 失败，请直接粘贴文本");
+    } finally {
+      setUploadingPdf(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await processPdfFile(file);
+    }
+  };
+
+  // Robust drag and drop counter logic to prevent drag-leave flicker when hovering over child elements
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current += 1;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current -= 1;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounter.current = 0;
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      await processPdfFile(file);
+    }
+  };
 
   const handleAnalyze = async () => {
     if (!userInput.targetRole || !userInput.jobDescription || !userInput.originalResume) {
       return;
     }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     setAnalyzing(true);
     setAnalysisError(null);
     try {
-      const result = await runResumeAnalysis(userInput);
+      const result = await runResumeAnalysis(userInput, "ai-product", controller.signal);
       setAnalysisResult(result);
       setCurrentStep("jd-analysis");
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       setAnalysisError(error instanceof Error ? error.message : "分析失败，请稍后重试");
     } finally {
+      abortControllerRef.current = null;
       setAnalyzing(false);
     }
+  };
+
+  const handleCancel = () => {
+    abortControllerRef.current?.abort();
   };
 
   const canAnalyze =
@@ -78,6 +187,12 @@ export function InputStep() {
             </>
           )}
         </Button>
+        {isAnalyzing && (
+          <Button variant="ghost" size="sm" onClick={handleCancel}>
+            <X className="h-3.5 w-3.5" />
+            取消
+          </Button>
+        )}
       </div>
 
       {analysisError && (
@@ -156,6 +271,56 @@ export function InputStep() {
                 onChange={(e) => setUserInput({ highlightSkills: e.target.value })}
               />
             </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>个人证件照 / 头像（可选）</Label>
+              <div className="flex items-center gap-4">
+                <div className="relative flex h-20 w-16 items-center justify-center rounded-md border border-dashed border-neutral-300 bg-neutral-50 overflow-hidden">
+                  {userInput.avatarUrl ? (
+                    <img
+                      src={userInput.avatarUrl}
+                      alt="证件照"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-6 w-6 text-neutral-400" />
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg"
+                    className="hidden"
+                    onChange={handleAvatarUpload}
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => avatarInputRef.current?.click()}
+                    >
+                      <Camera className="h-3.5 w-3.5" />
+                      {userInput.avatarUrl ? "更换照片" : "上传证件照"}
+                    </Button>
+                    {userInput.avatarUrl && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => setUserInput({ avatarUrl: "" })}
+                      >
+                        删除照片
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-neutral-400">
+                    支持上传寸照/形象照，将自动呈现并应用于双栏及自定义简历模板中
+                  </p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -174,15 +339,70 @@ export function InputStep() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">原始简历</CardTitle>
-            <CardDescription>粘贴当前简历全文</CardDescription>
+        <Card
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`relative overflow-hidden transition-all ${
+            isDragging
+              ? "border-2 border-dashed border-blue-500 bg-blue-50/80 shadow-md"
+              : ""
+          }`}
+        >
+          <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle className="text-sm">原始简历</CardTitle>
+              <CardDescription>
+                支持拖拽 PDF 文件到框内直接上传，或点击按钮解析全文本
+              </CardDescription>
+            </div>
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                className="hidden"
+                onChange={handlePdfUpload}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uploadingPdf}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploadingPdf ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    解析 PDF 中...
+                  </>
+                ) : (
+                  <>
+                    <FileUp className="h-3.5 w-3.5" />
+                    上传 PDF 简历
+                  </>
+                )}
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative space-y-2">
+            {isDragging && (
+              <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center rounded-lg bg-blue-500/15 backdrop-blur-[2px]">
+                <div className="flex items-center gap-2.5 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg animate-bounce">
+                  <FileUp className="h-4 w-4" />
+                  松开鼠标，自动解析 PDF 简历
+                </div>
+              </div>
+            )}
+            {pdfError && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                {pdfError}
+              </div>
+            )}
             <Textarea
               className="min-h-[240px] font-mono text-xs leading-relaxed"
-              placeholder="粘贴简历内容..."
+              placeholder="可以直接拖拽 PDF 文件到这里，或粘贴简历内容..."
               value={userInput.originalResume}
               onChange={(e) => setUserInput({ originalResume: e.target.value })}
             />

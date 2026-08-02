@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +19,13 @@ export function MatchStep() {
   const { analysisResult, setCurrentStep } = useResumeStore();
 
   if (!analysisResult) {
-    return <EmptyState message="请先完成输入材料并开始分析" />;
+    return (
+      <EmptyState
+        message="请先完成输入材料并开始分析"
+        actionLabel="返回输入材料"
+        onAction={() => setCurrentStep("input")}
+      />
+    );
   }
 
   const { matchItems } = analysisResult;
@@ -67,7 +73,11 @@ export function MatchStep() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
+      <div className="flex justify-between">
+        <Button variant="outline" size="sm" onClick={() => setCurrentStep("diagnosis")}>
+          <ChevronLeft className="h-4 w-4" />
+          上一步：简历诊断
+        </Button>
         <Button variant="outline" size="sm" onClick={() => setCurrentStep("follow-up")}>
           下一步：经历追问
           <ChevronRight className="h-4 w-4" />

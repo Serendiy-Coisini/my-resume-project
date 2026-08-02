@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -24,7 +24,13 @@ export function JDAnalysisStep() {
   const { analysisResult, setCurrentStep } = useResumeStore();
 
   if (!analysisResult) {
-    return <EmptyState message="请先完成输入材料并开始分析" />;
+    return (
+      <EmptyState
+        message="请先完成输入材料并开始分析"
+        actionLabel="返回输入材料"
+        onAction={() => setCurrentStep("input")}
+      />
+    );
   }
 
   const { jdAnalysis } = analysisResult;
@@ -111,7 +117,11 @@ export function JDAnalysisStep() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
+      <div className="flex justify-between">
+        <Button variant="outline" size="sm" onClick={() => setCurrentStep("input")}>
+          <ChevronLeft className="h-4 w-4" />
+          上一步：输入材料
+        </Button>
         <Button variant="outline" size="sm" onClick={() => setCurrentStep("diagnosis")}>
           下一步：简历诊断
           <ChevronRight className="h-4 w-4" />

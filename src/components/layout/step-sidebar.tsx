@@ -4,7 +4,6 @@ import {
   Brain,
   Check,
   Circle,
-  ClipboardList,
   Download,
   FileSearch,
   FileText,
@@ -24,12 +23,11 @@ const STEPS: { id: StepId; label: string; icon: React.ElementType }[] = [
   { id: "match", label: "匹配分析", icon: GitCompare },
   { id: "follow-up", label: "经历追问", icon: MessageSquare },
   { id: "optimize", label: "简历优化", icon: Sparkles },
-  { id: "final-resume", label: "最终简历", icon: ClipboardList },
   { id: "interview", label: "面试准备", icon: Brain },
-  { id: "export", label: "导出结果", icon: Download },
+  { id: "export", label: "最终简历导出", icon: Download },
 ];
 
-export function StepSidebar() {
+export function StepSidebar({ onStepClick }: { onStepClick?: () => void }) {
   const { setCurrentStep, getStepStatus, analysisResult } = useResumeStore();
 
   return (
@@ -49,7 +47,10 @@ export function StepSidebar() {
               type="button"
               disabled={isDisabled}
               onClick={() => {
-                if (!isDisabled) setCurrentStep(step.id);
+                if (!isDisabled) {
+                  setCurrentStep(step.id);
+                  onStepClick?.();
+                }
               }}
               className={cn(
                 "mb-0.5 flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm transition-colors",

@@ -1,5 +1,12 @@
 import type { ReactNode } from "react";
 
+export type TemplateId =
+  | "modern-sidebar"
+  | "timeline-tech"
+  | "corporate-banner"
+  | "grid-cards"
+  | "custom";
+
 export type StepId =
   | "input"
   | "jd-analysis"
@@ -28,6 +35,7 @@ export interface UserInput {
   jobDescription: string;
   originalResume: string;
   additionalInfo: string;
+  avatarUrl?: string;
 }
 
 export interface CoreCompetency {
@@ -109,6 +117,7 @@ export interface FinalResume {
     email: string;
     phone: string;
     location: string;
+    avatarUrl?: string;
   };
   jobIntent: string;
   summary: string;

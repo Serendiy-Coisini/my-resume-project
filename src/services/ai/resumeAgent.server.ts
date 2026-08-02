@@ -4,12 +4,17 @@ import {
   runMockFollowUpBullet,
   runMockRegenerateOptimizedItems,
   runMockResumeAnalysis,
+  runMockReoptimizeWithBullets,
+  runMockExtractTemplate,
 } from "@/services/ai/resumeAgent.mock";
 import {
   runLLMFollowUpBullet,
   runLLMRegenerateOptimizedItems,
+  runLLMReoptimizeWithBullets,
   runLLMResumeAnalysis,
+  runLLMExtractTemplate,
 } from "@/services/ai/resumeAgent.llm";
+import type { FollowUpBulletEntry } from "@/lib/ai/prompts";
 import type { AnalysisResult, OptimizeStyle, UserInput } from "@/types/resume";
 
 function currentMode(): AIMode {
@@ -61,4 +66,32 @@ export async function generateFollowUpBulletServer(
 
   const bullet = await runMockFollowUpBullet(purpose, userAnswer);
   return { bullet, mode };
+}
+
+export async function reoptimizeWithBulletsServer(
+  input: UserInput,
+  style: OptimizeStyle,
+  bullets: FollowUpBulletEntry[]
+): Promise<{ optimizedItems: AnalysisResult["optimizedItems"]; finalResume: AnalysisResult["finalResume"]; mode: AIMode }> {
+  const mode = currentMode();
+
+  if (mode === "llm") {
+    const { optimizedItems, finalResume } = await runLLMReoptimizeWithBullets(input, style, bullets);
+    return { optimizedItems, finalResume, mode };
+  }
+
+  const { optimizedItems, finalResume } = await runMockReoptimizeWithBullets(input, style, bullets);
+  return { optimizedItems, finalResume, mode };
+}
+
+export async function extractTemplateServer(rawContent: string): Promise<{ html: string; mode: AIMode }> {
+  const mode = currentMode();
+
+  if (mode === "llm") {
+    const html = await runLLMExtractTemplate(rawContent);
+    return { html, mode };
+  }
+
+  const html = await runMockExtractTemplate(rawContent);
+  return { html, mode };
 }

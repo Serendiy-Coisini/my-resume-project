@@ -511,4 +511,77 @@ export async function runMockFollowUpBullet(
   return `基于${purpose.replace(/[？?]/g, "")}，${userAnswer.trim().replace(/[。.!！]$/, "")}，体现 AI 产品落地能力与业务理解深度。`;
 }
 
+export async function runMockReoptimizeWithBullets(
+  input: UserInput,
+  style: OptimizeStyle,
+  bullets: { purpose: string; bullet: string }[]
+): Promise<Pick<AnalysisResult, "optimizedItems" | "finalResume">> {
+  await delay(1200);
+  const optimizedItems = buildOptimizedItems(style);
+
+  // Append bullet-derived entries to optimizedItems
+  bullets.forEach((b, i) => {
+    optimizedItems.push({
+      id: `opt-bullet-${i + 1}`,
+      section: "追问补充",
+      before: "（原简历无相关描述）",
+      after: b.bullet,
+      reason: `基于追问「${b.purpose}」补充的新经历`,
+      riskWarning: "确保该描述可在面试中详细展开",
+    });
+  });
+
+  const finalResume = buildFinalResume(input);
+  // Inject bullets into the first work experience entry
+  if (finalResume.workExperience.length > 0) {
+    finalResume.workExperience[0].bullets.push(
+      ...bullets.map((b) => b.bullet)
+    );
+  }
+
+  return { optimizedItems, finalResume };
+}
+
+export async function runMockExtractTemplate(rawContent: string): Promise<string> {
+  await delay(1500);
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{姓名}} - 识别提取简历模板</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 13.5px; line-height: 1.6; color: #1e293b; margin: 0; padding: 24px 32px; background: #fff; }
+    .header { border-bottom: 3px solid #6366f1; padding-bottom: 12px; margin-bottom: 20px; }
+    .name { font-size: 26px; font-weight: 700; color: #312e81; }
+    .contact { font-size: 12.5px; color: #4338ca; margin-top: 4px; }
+    .section-title { font-size: 14px; font-weight: 700; color: #312e81; border-left: 4px solid #6366f1; padding-left: 8px; margin-top: 20px; margin-bottom: 10px; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="name">{{姓名}}</div>
+    <div class="contact">{{邮箱}} · {{电话}} · {{城市}} · 求职意向：{{求职意向}}</div>
+  </div>
+
+  <div class="section-title">职业摘要</div>
+  <p>{{职业摘要}}</p>
+
+  <div class="section-title">核心能力</div>
+  <div>{{核心能力}}</div>
+
+  <div class="section-title">工作经历</div>
+  <div>{{工作经历}}</div>
+
+  <div class="section-title">项目经历</div>
+  <div>{{项目经历}}</div>
+
+  <div class="section-title">技能工具</div>
+  <p>{{技能工具}}</p>
+
+  <div class="section-title">教育背景</div>
+  <p>{{教育背景}}</p>
+</body>
+</html>`;
+}
+
 export { STYLE_LABELS };

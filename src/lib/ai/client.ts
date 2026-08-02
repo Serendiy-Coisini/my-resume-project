@@ -1,3 +1,4 @@
+import type { ZodType } from "zod";
 import { getAIConfig } from "@/lib/ai/config";
 import { LLMError } from "@/lib/ai/errors";
 import { parseJSONFromMessage } from "@/lib/ai/parse-json";
@@ -9,6 +10,9 @@ interface ChatCompletionOptions {
   user: string;
   temperature?: number;
   maxTokens?: number;
+  /** Optional Zod schema for runtime validation of the parsed JSON. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema?: ZodType<any>;
 }
 
 interface ChatMessage {
@@ -34,7 +38,7 @@ async function requestChatCompletionJSON<T>(options: ChatCompletionOptions): Pro
   const contents = extractMessageContents(choice?.message);
 
   try {
-    return parseJSONFromMessage<T>(contents);
+    return parseJSONFromMessage<T>(contents, options.schema);
   } catch (parseError) {
     const raw = contents.join("\n\n");
     if (!raw) throw new LLMError("大模型返回内容为空");
@@ -48,7 +52,7 @@ async function requestChatCompletionJSON<T>(options: ChatCompletionOptions): Pro
 
     const fixedContents = extractMessageContents(fixed.choices?.[0]?.message);
     try {
-      return parseJSONFromMessage<T>(fixedContents);
+      return parseJSONFromMessage<T>(fixedContents, options.schema);
     } catch {
       if (choice?.finish_reason === "length") {
         throw new LLMError("大模型输出被截断，请缩短 JD/简历内容后重试");

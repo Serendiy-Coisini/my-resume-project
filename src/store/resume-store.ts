@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import type {
   AnalysisResult,
   OptimizeStyle,
@@ -7,6 +8,7 @@ import type {
   UserInput,
 } from "@/types/resume";
 import type { AIMode } from "@/lib/ai/types";
+import { DEFAULT_CUSTOM_TEMPLATE_HTML } from "@/lib/resume-templates";
 
 const STEPS: StepId[] = [
   "input",
@@ -15,7 +17,6 @@ const STEPS: StepId[] = [
   "match",
   "follow-up",
   "optimize",
-  "final-resume",
   "interview",
   "export",
 ];
@@ -28,6 +29,8 @@ interface ResumeStore {
   analysisError: string | null;
   aiMode: AIMode | null;
   optimizeStyle: OptimizeStyle;
+  selectedTemplate: import("@/types/resume").TemplateId;
+  customTemplateHTML: string;
   copied: boolean;
 
   setUserInput: (input: Partial<UserInput>) => void;
@@ -38,10 +41,15 @@ interface ResumeStore {
   setAnalysisError: (error: string | null) => void;
   setAiMode: (mode: AIMode | null) => void;
   setOptimizeStyle: (style: OptimizeStyle) => void;
+  setSelectedTemplate: (template: import("@/types/resume").TemplateId) => void;
+  setCustomTemplateHTML: (html: string) => void;
   updateFollowUpAnswer: (id: string, answer: string) => void;
   setFollowUpBullet: (id: string, bullet: string) => void;
   getStepStatus: (step: StepId) => StepStatus;
   setCopied: (copied: boolean) => void;
+  reset: () => void;
+  goToNextStep: () => void;
+  goToPreviousStep: () => void;
 }
 
 const defaultUserInput: UserInput = {
@@ -55,136 +63,182 @@ const defaultUserInput: UserInput = {
   additionalInfo: "",
 };
 
-export const useResumeStore = create<ResumeStore>((set, get) => ({
-  userInput: defaultUserInput,
-  currentStep: "input",
-  isAnalyzing: false,
-  analysisResult: null,
-  analysisError: null,
-  aiMode: null,
-  optimizeStyle: "ai-product",
-  copied: false,
+export const useResumeStore = create<ResumeStore>()(
+  persist(
+    (set, get) => ({
+      userInput: defaultUserInput,
+      currentStep: "input" as StepId,
+      isAnalyzing: false,
+      analysisResult: null,
+      analysisError: null,
+      aiMode: null,
+      optimizeStyle: "ai-product" as OptimizeStyle,
+      selectedTemplate: "modern-sidebar" as import("@/types/resume").TemplateId,
+      customTemplateHTML: DEFAULT_CUSTOM_TEMPLATE_HTML,
+      copied: false,
 
-  setUserInput: (input) =>
-    set((state) => ({
-      userInput: { ...state.userInput, ...input },
-    })),
+      setUserInput: (input) =>
+        set((state) => ({
+          userInput: { ...state.userInput, ...input },
+        })),
 
-  loadExampleData: () =>
-    set({
-      userInput: {
-        targetRole: "AI 产品经理",
-        industry: "企业服务 / SaaS / AI",
-        companyType: "中型公司",
-        jobStage: "转行",
-        highlightSkills: "AI 产品规划、Prompt 设计、数据驱动、ToB 需求分析、跨团队协作",
-        jobDescription: `【岗位职责】
-1. 负责 AI 功能的产品规划与迭代，包括智能问答、文档理解、工作流自动化等模块
-2. 深入理解 B 端客户业务场景，将 AI 能力转化为可落地的产品方案
-3. 与算法、工程团队协作，推动 AI 功能从 POC 到规模化上线
-4. 建立 AI 产品效果评估体系，通过数据驱动持续优化
-5. 跟踪 AI 行业趋势，输出竞品分析与产品策略
+      loadExampleData: () =>
+        set({
+          userInput: {
+            targetRole: "AI 产品经理",
+            industry: "企业服务 / SaaS",
+            companyType: "大厂",
+            jobStage: "社招-中级",
+            highlightSkills: "AI 功能落地方案、提示词工程、数据驱动迭代",
+            jobDescription: `岗位职责：
+1. 负责核心 AI 功能（智能问答、文档理解、工作流自动化）的产品规划与设计；
+2. 深入理解 B 端客户业务场景，将大模型能力转化为可落地的产品方案；
+3. 与算法、工程团队紧密协作，推动 AI 功能从 POC 验证到规模化上线；
+4. 建立 AI 产品效果评估体系，通过数据分析与用户反馈持续优化产品体验；
+5. 跟踪 AI 行业前沿趋势，输出竞品分析与产品策略。
 
-【任职要求】
-1. 3年以上产品经理经验，有 ToB SaaS 或企业服务产品经验
-2. 了解 LLM 基本原理，有 AI 产品或智能化功能落地经验者优先
-3. 具备优秀的需求分析和逻辑思维能力，能将复杂业务抽象为产品方案
-4. 有数据报表、ERP/WMS 等系统产品经验者优先
-5. 良好的跨部门沟通能力和项目管理能力
-6. 本科及以上学历，计算机或相关专业优先`,
-        originalResume: `张明 | 产品经理 | 3.5年经验
+任职要求：
+1. 3年以上 PM 经验，有 ToB SaaS 或企业服务产品背景；
+2. 理解 LLM 能力边界与常见架构，有 AI 产品设计/落地经验者优先；
+3. 具备优秀的需求分析、逻辑思维和跨部门沟通协作能力；
+4. 熟练掌握数据分析方法，有良好的数据敏感度；
+5. 本科及以上学历，计算机/信息管理相关专业优先。`,
+            originalResume: `钟小龙
+手机：18925600631 | 邮箱：3334002982@qq.com | 城市：广东潮州
+求职意向：AI 产品经理 / 技术服务工程师
 
-【个人信息】
-电话：138****5678 | 邮箱：zhangming@email.com | 上海
+职业摘要：
+软件工程专业本科在读，具备扎实的系统思维与逻辑分析能力。对 AI 产品有浓厚兴趣，擅长从用户数据中挖掘需求并推动优化。校园经历中展现出优秀的组织协调、文档编制与团队协作能力。
 
-【职业摘要】
-3.5年 B 端产品经理经验，主导 ERP 库存管理、WMS 仓储系统及经营数据报表平台的产品设计与迭代。擅长需求调研、流程梳理与跨部门协作，具备从 0 到 1 搭建数据产品的经验。
+核心能力：
+• 数据分析与问题解决
+• 产品思维与用户洞察
+• 系统化思维与故障排查
+• 跨部门沟通与文档呈现
 
-【工作经历】
-某 SaaS 公司 | 产品经理 | 2021.06 - 至今
-• 负责 WMS 仓储管理系统核心模块，服务 50+ 企业客户
-• 主导库存盘点功能重构，盘点效率提升 40%
-• 设计经营数据报表平台，支持 20+ 自定义报表模板
-• 协调研发、测试、实施团队，按时交付 3 个 major 版本
+工作经历：
+百度网盘 · 校园大使（产品运营方向）
+2024.05 - 至今
+• 负责小红书品牌推广，通过内容策划与用户互动提升曝光，单篇笔记最高获赞200+，积累用户反馈数据；
+• 运营百人社群，组织话题讨论与活动，提高用户活跃度，收集产品使用意见并协助迭代；
+• 基于互动率、转化率等数据优化内容策略，培养数据驱动决策习惯。
 
-某软件公司 | 产品助理 | 2020.07 - 2021.05
-• 参与 ERP 采购模块需求分析与原型设计
-• 编写 PRD 文档，跟进开发进度与 UAT 测试
-• 收集客户反馈，优化订单审批流程
+项目经历：
+团支部组织与文书工作 · 团支书
+2023.09 - 至今
+• 策划并执行10次团日活动，协调30+人参与，确保活动流程零差错；
+• 负责学院与支部间信息传达，100%触达率，体现严谨细致的工作态度；
+• 制作10余份活动PPT及评选材料，提升文档整理与汇报能力。
 
-【项目经历】
-经营数据报表平台 | 产品负责人 | 2022.03 - 2023.06
-• 从 0 到 1 搭建 BI 报表平台，覆盖销售、库存、财务三大主题
-• 设计拖拽式报表配置器，降低业务人员使用门槛
-• 上线后月活用户 200+，报表生成效率提升 60%
+校学生会综合部活动执行 · 成员
+2022.09 - 2023.06
+• 协助完成15场校园大型活动，累计参与人数超3000人，锻炼多线程任务协调能力；
+• 及时完成部长下达的各项任务，个人工作考核分数满分。
 
-WMS 智能补货 | 产品经理 | 2023.01 - 2023.09
-• 基于历史销售数据设计补货策略模型
-• 推动补货建议功能上线，缺货率下降 25%
+技能工具：
+Java · Microsoft Office · 数据分析基础 (Excel, 数据可视化) · 产品运营工具 (小红书, 社群运营)
 
-【技能】
-Axure、Figma、SQL、Jira、Confluence、数据分析
+教育背景：
+韩山师范学院 · 本科 · 软件工程 · 2023.09 - 2027.06`,
+            additionalInfo: "希望突出在 AI 功能落地、数据分析和产品设计方面的潜力。",
+          },
+        }),
 
-【教育】
-某大学 | 信息管理与信息系统 | 本科 | 2016-2020`,
-        additionalInfo: "最近自学了 Prompt Engineering 和 LangChain 基础，做过一个内部文档问答 Demo。希望突出数据产品背景和 ToB 经验，弱化纯执行类描述。",
+      setCurrentStep: (step) => set({ currentStep: step }),
+
+      setAnalyzing: (analyzing) => set({ isAnalyzing: analyzing }),
+
+      setAnalysisResult: (result) => set({ analysisResult: result, analysisError: null }),
+
+      setAnalysisError: (error) => set({ analysisError: error }),
+
+      setAiMode: (mode) => set({ aiMode: mode }),
+
+      setOptimizeStyle: (style) => set({ optimizeStyle: style }),
+
+      setSelectedTemplate: (template) => set({ selectedTemplate: template }),
+
+      setCustomTemplateHTML: (html) => set({ customTemplateHTML: html }),
+
+      updateFollowUpAnswer: (id, answer) =>
+        set((state) => {
+          if (!state.analysisResult) return state;
+          return {
+            analysisResult: {
+              ...state.analysisResult,
+              followUpQuestions: state.analysisResult.followUpQuestions.map((q) =>
+                q.id === id ? { ...q, userAnswer: answer } : q
+              ),
+            },
+          };
+        }),
+
+      setFollowUpBullet: (id, bullet) =>
+        set((state) => {
+          if (!state.analysisResult) return state;
+          return {
+            analysisResult: {
+              ...state.analysisResult,
+              followUpQuestions: state.analysisResult.followUpQuestions.map((q) =>
+                q.id === id ? { ...q, generatedBullet: bullet } : q
+              ),
+            },
+          };
+        }),
+
+      getStepStatus: (stepId: StepId) => {
+        const { currentStep, analysisResult } = get();
+        if (stepId === currentStep) return "active";
+
+        const currentIdx = STEPS.indexOf(currentStep);
+        const targetIdx = STEPS.indexOf(stepId);
+
+        if (targetIdx === 0) return "completed";
+        if (!analysisResult) return "disabled";
+
+        return targetIdx < currentIdx ? "completed" : "pending";
+      },
+
+      setCopied: (copied) => set({ copied }),
+
+      reset: () =>
+        set({
+          userInput: defaultUserInput,
+          currentStep: "input" as StepId,
+          isAnalyzing: false,
+          analysisResult: null,
+          analysisError: null,
+          optimizeStyle: "ai-product" as OptimizeStyle,
+          selectedTemplate: "classic" as import("@/types/resume").TemplateId,
+          customTemplateHTML: DEFAULT_CUSTOM_TEMPLATE_HTML,
+          copied: false,
+        }),
+
+      goToNextStep: () => {
+        const { currentStep } = get();
+        const idx = STEPS.indexOf(currentStep);
+        if (idx >= 0 && idx < STEPS.length - 1) {
+          set({ currentStep: STEPS[idx + 1] });
+        }
+      },
+
+      goToPreviousStep: () => {
+        const { currentStep } = get();
+        const idx = STEPS.indexOf(currentStep);
+        if (idx > 0) {
+          set({ currentStep: STEPS[idx - 1] });
+        }
       },
     }),
-
-  setCurrentStep: (step) => set({ currentStep: step }),
-
-  setAnalyzing: (analyzing) => set({ isAnalyzing: analyzing }),
-
-  setAnalysisResult: (result) => set({ analysisResult: result, analysisError: null }),
-
-  setAnalysisError: (error) => set({ analysisError: error }),
-
-  setAiMode: (mode) => set({ aiMode: mode }),
-
-  setOptimizeStyle: (style) => set({ optimizeStyle: style }),
-
-  updateFollowUpAnswer: (id, answer) =>
-    set((state) => {
-      if (!state.analysisResult) return state;
-      return {
-        analysisResult: {
-          ...state.analysisResult,
-          followUpQuestions: state.analysisResult.followUpQuestions.map((q) =>
-            q.id === id ? { ...q, userAnswer: answer } : q
-          ),
-        },
-      };
-    }),
-
-  setFollowUpBullet: (id, bullet) =>
-    set((state) => {
-      if (!state.analysisResult) return state;
-      return {
-        analysisResult: {
-          ...state.analysisResult,
-          followUpQuestions: state.analysisResult.followUpQuestions.map((q) =>
-            q.id === id ? { ...q, generatedBullet: bullet } : q
-          ),
-        },
-      };
-    }),
-
-  getStepStatus: (step) => {
-    const { currentStep, analysisResult } = get();
-    const stepIndex = STEPS.indexOf(step);
-    const currentIndex = STEPS.indexOf(currentStep);
-
-    if (step === "input") {
-      if (currentStep === "input") return "active";
-      return analysisResult ? "completed" : "pending";
+    {
+      name: "resume-expert-store",
+      version: 1,
+      partialize: (state) => ({
+        userInput: state.userInput,
+        currentStep: state.currentStep,
+        analysisResult: state.analysisResult,
+        optimizeStyle: state.optimizeStyle,
+      }),
     }
-
-    if (!analysisResult) return "disabled";
-
-    if (stepIndex < currentIndex) return "completed";
-    if (stepIndex === currentIndex) return "active";
-    return "pending";
-  },
-
-  setCopied: (copied) => set({ copied }),
-}));
+  )
+);

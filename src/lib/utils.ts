@@ -59,9 +59,10 @@ export function formatResumeAsText(resume: import("@/types/resume").FinalResume)
 export function exportResumeAsWord(
   resume: import("@/types/resume").FinalResume,
   templateId: TemplateId = "modern-sidebar",
-  customTemplateHTML?: string
+  customTemplateHTML?: string,
+  options?: import("./resume-templates").TemplateOptions
 ) {
-  const innerHtml = renderTemplateHTML(resume, templateId, customTemplateHTML);
+  const innerHtml = renderTemplateHTML(resume, templateId, customTemplateHTML, options);
   const htmlContent = `
     <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
     ${innerHtml}
@@ -84,27 +85,54 @@ export function exportResumeAsWord(
 export function exportResumeAsPDF(
   resume: import("@/types/resume").FinalResume,
   templateId: TemplateId = "modern-sidebar",
-  customTemplateHTML?: string
+  customTemplateHTML?: string,
+  options?: import("./resume-templates").TemplateOptions
 ) {
   const printWindow = window.open("", "_blank");
   if (!printWindow) return;
 
-  const htmlContent = renderTemplateHTML(resume, templateId, customTemplateHTML);
+  const docTitle = `${resume.personalInfo.name}_个人简历`;
+  const htmlContent = renderTemplateHTML(resume, templateId, customTemplateHTML, options);
+
   const printStyle = `
     <style>
       @page {
         size: A4;
-        margin: 8mm !important;
+        margin: 4mm !important;
       }
       @media print {
         html, body {
-          height: auto !important;
-          min-height: auto !important;
+          width: 100% !important;
+          height: 100% !important;
+          min-height: 100% !important;
           margin: 0 !important;
           padding: 0 !important;
           overflow: visible !important;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
+          background: #ffffff !important;
+        }
+        .container {
+          display: table !important;
+          width: 100% !important;
+          height: 100% !important;
+          min-height: 100% !important;
+        }
+        .sidebar {
+          display: table-cell !important;
+          background-color: #f8fafc !important;
+          border-right: 1px solid #e2e8f0 !important;
+          height: 100% !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        .main {
+          display: table-cell !important;
+          height: 100% !important;
+        }
+        .work-item, .project-item, .tl-item, .card-box, .sec-title, .sidebar-section {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
         }
         body > *:last-child,
         div:last-child,
@@ -119,6 +147,7 @@ export function exportResumeAsPDF(
 
   const printScript = `
     <script>
+      document.title = "${docTitle}";
       window.addEventListener('load', function() {
         var imgs = document.getElementsByTagName('img');
         var promises = [];
@@ -140,9 +169,11 @@ export function exportResumeAsPDF(
   `;
 
   const contentWithPrint = htmlContent
+    .replace("<title>", `<title>${docTitle}</title><style>`)
     .replace("</head>", `${printStyle}</head>`)
     .replace("</body>", `${printScript}</body>`);
 
   printWindow.document.write(contentWithPrint);
+  printWindow.document.title = docTitle;
   printWindow.document.close();
 }

@@ -1,11 +1,6 @@
 import type { ReactNode } from "react";
 
-export type TemplateId =
-  | "modern-sidebar"
-  | "timeline-tech"
-  | "corporate-banner"
-  | "grid-cards"
-  | "custom";
+export type TemplateId = import("@/lib/resume-templates").TemplateId;
 
 export type StepId =
   | "input"

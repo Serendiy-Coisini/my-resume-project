@@ -21,19 +21,37 @@ const STEPS: StepId[] = [
   "export",
 ];
 
+export interface AnalysisStageInfo {
+  stageId: string;
+  label: string;
+  currentStepNumber: number;
+  totalSteps: number;
+  progressPercent: number;
+  completedStages: string[];
+}
+
 interface ResumeStore {
   userInput: UserInput;
   currentStep: StepId;
   isAnalyzing: boolean;
+  analysisStage: AnalysisStageInfo | null;
+  enablePIIMasking: boolean;
   analysisResult: AnalysisResult | null;
   analysisError: string | null;
   aiMode: AIMode | null;
   optimizeStyle: OptimizeStyle;
   selectedTemplate: import("@/types/resume").TemplateId;
+  templateOptions: import("@/lib/resume-templates").TemplateOptions;
+  showPageBreakGuide: boolean;
   customTemplateHTML: string;
   copied: boolean;
 
   setUserInput: (input: Partial<UserInput>) => void;
+  setEnablePIIMasking: (enabled: boolean) => void;
+  setAnalysisStage: (stage: AnalysisStageInfo | null) => void;
+  updatePartialAnalysisResult: (partial: Partial<AnalysisResult>) => void;
+  setTemplateOptions: (options: import("@/lib/resume-templates").TemplateOptions) => void;
+  setShowPageBreakGuide: (show: boolean) => void;
   loadExampleData: () => void;
   setCurrentStep: (step: StepId) => void;
   setAnalyzing: (analyzing: boolean) => void;
@@ -69,11 +87,17 @@ export const useResumeStore = create<ResumeStore>()(
       userInput: defaultUserInput,
       currentStep: "input" as StepId,
       isAnalyzing: false,
+      analysisStage: null,
+      enablePIIMasking: true,
       analysisResult: null,
       analysisError: null,
       aiMode: null,
       optimizeStyle: "ai-product" as OptimizeStyle,
       selectedTemplate: "modern-sidebar" as import("@/types/resume").TemplateId,
+      templateOptions: {
+        themeColor: "#1e3a8a",
+      },
+      showPageBreakGuide: false,
       customTemplateHTML: DEFAULT_CUSTOM_TEMPLATE_HTML,
       copied: false,
 
@@ -81,6 +105,21 @@ export const useResumeStore = create<ResumeStore>()(
         set((state) => ({
           userInput: { ...state.userInput, ...input },
         })),
+
+      setEnablePIIMasking: (enabled) => set({ enablePIIMasking: enabled }),
+
+      setAnalysisStage: (stage) => set({ analysisStage: stage }),
+
+      updatePartialAnalysisResult: (partial) =>
+        set((state) => ({
+          analysisResult: state.analysisResult
+            ? { ...state.analysisResult, ...partial }
+            : (partial as AnalysisResult),
+        })),
+
+      setTemplateOptions: (options) => set({ templateOptions: options }),
+
+      setShowPageBreakGuide: (show) => set({ showPageBreakGuide: show }),
 
       loadExampleData: () =>
         set({
@@ -205,6 +244,7 @@ Axure · Figma · Python (数据分析) · SQL · Prompt Optimization · LangCha
           userInput: defaultUserInput,
           currentStep: "input" as StepId,
           isAnalyzing: false,
+          analysisStage: null,
           analysisResult: null,
           analysisError: null,
           optimizeStyle: "ai-product" as OptimizeStyle,

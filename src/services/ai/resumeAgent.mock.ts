@@ -496,6 +496,62 @@ export async function runMockResumeAnalysis(
   };
 }
 
+export async function runMockResumeAnalysisStream(
+  input: UserInput,
+  optimizeStyle: OptimizeStyle = "ai-product",
+  onStageUpdate?: (update: {
+    stage: string;
+    status: "start" | "complete";
+    data?: Partial<AnalysisResult>;
+  }) => void
+): Promise<AnalysisResult> {
+  onStageUpdate?.({ stage: "jd-analysis", status: "start" });
+  await delay(400);
+  const jdAnalysis = buildJDAnalysis(input);
+  onStageUpdate?.({ stage: "jd-analysis", status: "complete", data: { jdAnalysis } });
+
+  onStageUpdate?.({ stage: "diagnosis", status: "start" });
+  await delay(500);
+  const diagnosis = buildDiagnosis();
+  const matchItems = buildMatchItems();
+  const followUpQuestions = buildFollowUpQuestions();
+  onStageUpdate?.({
+    stage: "diagnosis",
+    status: "complete",
+    data: { diagnosis, matchItems, followUpQuestions },
+  });
+
+  onStageUpdate?.({ stage: "optimize", status: "start" });
+  await delay(600);
+  const optimizedItems = buildOptimizedItems(optimizeStyle);
+  const finalResume = buildFinalResume(input);
+  onStageUpdate?.({
+    stage: "optimize",
+    status: "complete",
+    data: { optimizedItems, finalResume },
+  });
+
+  onStageUpdate?.({ stage: "interview", status: "start" });
+  await delay(400);
+  const interviewPrep = buildInterviewPrep();
+  onStageUpdate?.({
+    stage: "interview",
+    status: "complete",
+    data: { interviewPrep },
+  });
+
+  return {
+    jdAnalysis,
+    diagnosis,
+    matchItems,
+    followUpQuestions,
+    optimizedItems,
+    finalResume,
+    interviewPrep,
+  };
+}
+
+
 export async function runMockRegenerateOptimizedItems(
   style: OptimizeStyle
 ): Promise<AnalysisResult["optimizedItems"]> {

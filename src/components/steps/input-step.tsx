@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, FileUp, Loader2, Sparkles, User, Wand2, X } from "lucide-react";
+import { Camera, CheckCircle2, FileUp, Loader2, ShieldCheck, Sparkles, User, Wand2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -15,9 +16,16 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SectionTitle } from "@/components/shared/ui-helpers";
-import { runResumeAnalysis } from "@/services/ai/resumeAgent";
+import { runResumeAnalysisStream } from "@/services/ai/resumeAgent";
 import { useResumeStore } from "@/store/resume-store";
 import type { CompanyType, JobStage } from "@/types/resume";
+
+const STAGE_STEPS = [
+  { id: "jd-analysis", name: "JD 拆解", label: "正在拆解岗位 JD 核心要求", startPct: 15, endPct: 35 },
+  { id: "diagnosis", name: "匹配诊断", label: "正在深度诊断与计算匹配打分", startPct: 40, endPct: 65 },
+  { id: "optimize", name: "简历改写", label: "正在定制优化简历 Bullet Points", startPct: 70, endPct: 82 },
+  { id: "interview", name: "面试预测", label: "正在预测高频面试考点与回答", startPct: 85, endPct: 95 },
+];
 
 export function InputStep() {
   const {
@@ -30,6 +38,11 @@ export function InputStep() {
     isAnalyzing,
     analysisError,
     setCurrentStep,
+    enablePIIMasking,
+    setEnablePIIMasking,
+    analysisStage,
+    setAnalysisStage,
+    updatePartialAnalysisResult,
   } = useResumeStore();
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -96,7 +109,6 @@ export function InputStep() {
     }
   };
 
-  // Robust drag and drop counter logic to prevent drag-leave flicker when hovering over child elements
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -140,9 +152,69 @@ export function InputStep() {
     abortControllerRef.current = controller;
     setAnalyzing(true);
     setAnalysisError(null);
+
+    const completedStagesList: string[] = [];
+
+    setAnalysisStage({
+      stageId: "jd-analysis",
+      label: "正在发起 AI 大模型分析...",
+      currentStepNumber: 1,
+      totalSteps: 4,
+      progressPercent: 8,
+      completedStages: [],
+    });
+
     try {
-      const result = await runResumeAnalysis(userInput, "ai-product", controller.signal);
+      const result = await runResumeAnalysisStream(
+        userInput,
+        "ai-product",
+        {
+          enablePIIMasking,
+          onStageChange: (stageId, status) => {
+            const stepIdx = STAGE_STEPS.findIndex((s) => s.id === stageId);
+            const stepInfo = STAGE_STEPS[stepIdx];
+
+            if (status === "start") {
+              setAnalysisStage({
+                stageId,
+                label: stepInfo ? `${stepInfo.label}...` : "正在分析中...",
+                currentStepNumber: stepIdx >= 0 ? stepIdx + 1 : 1,
+                totalSteps: 4,
+                progressPercent: stepInfo ? stepInfo.startPct : 50,
+                completedStages: [...completedStagesList],
+              });
+            } else if (status === "complete") {
+              if (!completedStagesList.includes(stageId)) {
+                completedStagesList.push(stageId);
+              }
+              setAnalysisStage({
+                stageId,
+                label: stepInfo ? `${stepInfo.name} 完成` : "阶段完成",
+                currentStepNumber: stepIdx >= 0 ? stepIdx + 1 : 1,
+                totalSteps: 4,
+                progressPercent: stepInfo ? stepInfo.endPct : 70,
+                completedStages: [...completedStagesList],
+              });
+            }
+          },
+          onPartialResult: (partial) => {
+            updatePartialAnalysisResult(partial);
+          },
+        },
+        controller.signal
+      );
+
       setAnalysisResult(result);
+      setAnalysisStage({
+        stageId: "complete",
+        label: "🎉 分析完成！正在为您生成分析报告...",
+        currentStepNumber: 4,
+        totalSteps: 4,
+        progressPercent: 100,
+        completedStages: STAGE_STEPS.map((s) => s.id),
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 600));
       setCurrentStep("jd-analysis");
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
@@ -150,6 +222,7 @@ export function InputStep() {
     } finally {
       abortControllerRef.current = null;
       setAnalyzing(false);
+      setAnalysisStage(null);
     }
   };
 
@@ -168,6 +241,28 @@ export function InputStep() {
         title="输入材料"
         description="填写目标岗位信息与原始简历，Agent 将基于 JD 进行定制分析与优化"
       />
+
+      {/* PII Privacy Protection Switch Banner */}
+      <div className="mb-4 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-900 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <ShieldCheck className="h-4.5 w-4.5 text-emerald-600 shrink-0" />
+          <div>
+            <span className="font-semibold text-emerald-950">AI 敏感隐私脱敏保护</span>
+            <span className="ml-2 text-emerald-700">
+              开启后，手机号、电子邮箱、姓名等个人隐私将在发送给 AI 前自动加密脱敏，分析完成后自动原位解密还原。
+            </span>
+          </div>
+        </div>
+        <label className="relative inline-flex items-center cursor-pointer ml-3 shrink-0">
+          <input
+            type="checkbox"
+            className="sr-only peer"
+            checked={enablePIIMasking}
+            onChange={(e) => setEnablePIIMasking(e.target.checked)}
+          />
+          <div className="w-9 h-5 bg-neutral-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+        </label>
+      </div>
 
       <div className="mb-4 flex gap-2">
         <Button variant="outline" size="sm" onClick={loadExampleData}>
@@ -194,6 +289,62 @@ export function InputStep() {
           </Button>
         )}
       </div>
+
+      {/* Multi-stage High-End Progress Card */}
+      {isAnalyzing && analysisStage && (
+        <div className="mb-4 rounded-xl border border-blue-200/80 bg-gradient-to-b from-blue-50/90 via-indigo-50/40 to-white p-4 shadow-sm space-y-3.5 transition-all">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2 font-semibold text-blue-950">
+              {analysisStage.progressPercent < 100 ? (
+                <Loader2 className="h-4 w-4 animate-spin text-blue-600 shrink-0" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              )}
+              <span>{analysisStage.label}</span>
+            </div>
+            <div className="flex items-center gap-1 font-mono text-xs font-bold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-md">
+              <span>{analysisStage.progressPercent}%</span>
+            </div>
+          </div>
+
+          <Progress
+            value={analysisStage.progressPercent}
+            className="h-2.5 bg-blue-100/80 shadow-inner"
+            indicatorClassName="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 shadow-md transition-all duration-500"
+          />
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+            {STAGE_STEPS.map((step, idx) => {
+              const isCompleted = analysisStage.completedStages.includes(step.id);
+              const isActive = analysisStage.stageId === step.id && !isCompleted;
+
+              return (
+                <div
+                  key={step.id}
+                  className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 px-2 text-[11px] font-medium transition-all ${
+                    isCompleted
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs"
+                      : isActive
+                      ? "bg-blue-100/90 text-blue-900 border border-blue-300 font-semibold ring-2 ring-blue-400/20"
+                      : "bg-neutral-100/60 text-neutral-400 border border-neutral-200/40"
+                  }`}
+                >
+                  {isCompleted ? (
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                  ) : isActive ? (
+                    <Loader2 className="h-3 w-3 animate-spin text-blue-600 shrink-0" />
+                  ) : (
+                    <span className="h-1.5 w-1.5 rounded-full bg-neutral-300 shrink-0" />
+                  )}
+                  <span className="truncate">
+                    {idx + 1}. {step.name}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {analysisError && (
         <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

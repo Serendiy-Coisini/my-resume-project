@@ -5,6 +5,8 @@ export type TemplateId =
   | "timeline-tech"
   | "corporate-banner"
   | "grid-cards"
+  | "classic-minimal"
+  | "github-tech"
   | "custom";
 
 export interface TemplateConfig {
@@ -14,6 +16,14 @@ export interface TemplateConfig {
   tag: string;
   color: string;
 }
+
+export interface TemplateOptions {
+  themeColor?: string;
+}
+
+export const DEFAULT_TEMPLATE_OPTIONS: TemplateOptions = {
+  themeColor: "#1e3a8a",
+};
 
 export const TEMPLATES: TemplateConfig[] = [
   {
@@ -32,17 +42,31 @@ export const TEMPLATES: TemplateConfig[] = [
   },
   {
     id: "corporate-banner",
-    name: "商务色块 Header",
-    description: "顶部带有深色背景 Header 块与个人照，下方搭配双列能力矩阵",
-    tag: "大厂商务",
+    name: "商务 Header",
+    description: "深色顶部 Banner + 白色内容卡片，商务大气沉稳范",
+    tag: "商务名企",
     color: "#1e1b4b",
   },
   {
     id: "grid-cards",
     name: "微阴影卡片流",
-    description: "每个履历模块独立卡片包裹，现代化UI设计，阅读体感极佳",
-    tag: "卡片风",
+    description: "现代卡片切块分割，内容区块感极强",
+    tag: "卡片切块",
     color: "#059669",
+  },
+  {
+    id: "classic-minimal",
+    name: "经典极简单栏",
+    description: "HR极力推荐的清爽单栏样式，信息密度适中，适合大厂社招",
+    tag: "大厂推荐",
+    color: "#1e3a8a",
+  },
+  {
+    id: "github-tech",
+    name: "Github 极客代码",
+    description: "专为工程师与 AI 产品经理设计，深色标头、终端提示符与现代技术标签",
+    tag: "极客程序员",
+    color: "#0f172a",
   },
 ];
 
@@ -190,10 +214,22 @@ export function compileCustomTemplate(htmlTemplate: string, resume: FinalResume)
 export function renderTemplateHTML(
   resume: FinalResume,
   templateId: TemplateId,
-  customTemplateHTML?: string
+  customTemplateHTML?: string,
+  options: TemplateOptions = DEFAULT_TEMPLATE_OPTIONS
 ): string {
   const p = resume.personalInfo;
   const avatarUrl = p.avatarUrl || "";
+
+  const themeVal = options.themeColor || "#1e3a8a";
+  const fontVal = "13.5px";
+
+  const lhVal = "1.56";
+  const secMT = "18px";
+  const secMB = "8px";
+  const itemMB = "12px";
+  const ulMB = "8px";
+  const liMB = "4px";
+  const marginVal = "4mm";
 
   const avatarTag = avatarUrl
     ? `<img src="${avatarUrl}" style="width:72px; height:90px; object-fit:cover; border-radius:4px; border:1px solid #cbd5e1;" />`
@@ -204,7 +240,157 @@ export function renderTemplateHTML(
     return compileCustomTemplate(customTemplateHTML, resume);
   }
 
-  // 1. Timeline Tech Template
+  // 1. Classic Minimal Single Column Template
+  if (templateId === "classic-minimal") {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>${p.name} - 个人简历</title>
+        <style>
+          @page { size: A4; margin: ${marginVal}; }
+          * { box-sizing: border-box; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: ${fontVal}; line-height: ${lhVal}; color: #1e293b; margin: 0; padding: 6px 12px; background: #fff; word-break: break-word; overflow-wrap: break-word; }
+          .header { text-align: center; border-bottom: 2px solid ${themeVal}; padding-bottom: 8px; margin-bottom: 12px; }
+          .name { font-size: 22px; font-weight: 700; color: ${themeVal}; margin-bottom: 4px; letter-spacing: 0.5px; }
+          .intent { font-size: 12.5px; font-weight: 600; color: #475569; margin-bottom: 4px; }
+          .contact { font-size: 12px; color: #64748b; }
+          .sec-title { font-size: 13.5px; font-weight: 700; color: ${themeVal}; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; margin-top: ${secMT}; margin-bottom: ${secMB}; text-transform: uppercase; letter-spacing: 0.5px; }
+          .item-head { display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; color: #0f172a; margin-top: 6px; }
+          .skill-pill { display: inline-block; background: #f1f5f9; color: #1e293b; border: 1px solid #e2e8f0; padding: 2px 8px; border-radius: 4px; font-size: 11.5px; margin: 2px 4px 2px 0; }
+          .work-item, .project-item { margin-bottom: ${itemMB}; page-break-inside: avoid; break-inside: avoid; }
+          ul { margin: 3px 0 ${ulMB} 0; padding-left: 18px; }
+          li { margin-bottom: ${liMB}; color: #334155; line-height: ${lhVal}; }
+          p { margin: 3px 0; line-height: ${lhVal}; }
+          .card-box { page-break-inside: avoid; break-inside: avoid; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          ${avatarTag ? `<div style="margin-bottom:6px;">${avatarTag}</div>` : ""}
+          <div class="name">${p.name}</div>
+          <div class="intent">求职意向：${resume.jobIntent}</div>
+          <div class="contact">${p.email} &nbsp;|&nbsp; ${p.phone} &nbsp;|&nbsp; ${p.location}</div>
+        </div>
+
+        <div class="sec-title">职业摘要</div>
+        <p>${resume.summary}</p>
+
+        <div class="sec-title">核心能力</div>
+        <div>${resume.coreSkills.map((s) => `<span class="skill-pill">${s}</span>`).join(" ")}</div>
+
+        <div class="sec-title">工作经历</div>
+        ${resume.workExperience
+          .map(
+            (w) => `
+          <div class="work-item">
+            <div class="item-head"><span>${w.company} · ${w.role}</span><span>${w.period}</span></div>
+            <ul>${w.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+          </div>
+        `
+          )
+          .join("")}
+
+        <div class="sec-title">项目经历</div>
+        ${resume.projectExperience
+          .map(
+            (pr) => `
+          <div class="project-item">
+            <div class="item-head"><span>${pr.name} · ${pr.role}</span><span>${pr.period}</span></div>
+            <ul>${pr.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+          </div>
+        `
+          )
+          .join("")}
+
+        <div class="sec-title">技能工具</div>
+        <p>${resume.skillsAndTools.join(" · ")}</p>
+
+        <div class="sec-title">教育背景</div>
+        <p>${resume.education.school} · ${resume.education.degree} · ${resume.education.period}</p>
+      </body>
+      </html>
+    `;
+  }
+
+  // 2. Github Tech Template
+  if (templateId === "github-tech") {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>${p.name} - 个人简历</title>
+        <style>
+          @page { size: A4; margin: ${marginVal}; }
+          * { box-sizing: border-box; }
+          body { font-family: "Fira Code", Consolas, Monaco, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; font-size: ${fontVal}; line-height: ${lhVal}; color: #334155; margin: 0; padding: 6px 12px; background: #fff; word-break: break-word; overflow-wrap: break-word; }
+          .terminal-header { background: #0f172a; color: #f8fafc; border-radius: 6px; padding: 12px 16px; margin-bottom: 12px; font-family: monospace; display: flex; justify-content: space-between; align-items: center; }
+          .prompt { color: #38bdf8; font-weight: bold; }
+          .name { font-size: 20px; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+          .contact { font-size: 11.5px; color: #94a3b8; }
+          .sec-title { font-size: 13px; font-weight: 700; color: ${themeVal}; border-left: 3px solid ${themeVal}; padding-left: 8px; margin-top: ${secMT}; margin-bottom: ${secMB}; font-family: monospace; }
+          .item-head { display: flex; justify-content: space-between; font-weight: 600; font-size: 13px; color: #0f172a; margin-top: 6px; }
+          .code-tag { display: inline-block; background: #f1f5f9; color: #0284c7; border: 1px solid #bae6fd; font-family: monospace; padding: 2px 7px; border-radius: 4px; font-size: 11.5px; margin: 2px 4px 2px 0; }
+          .work-item, .project-item { margin-bottom: ${itemMB}; page-break-inside: avoid; break-inside: avoid; }
+          ul { margin: 3px 0 ${ulMB} 0; padding-left: 18px; }
+          li { margin-bottom: ${liMB}; color: #334155; line-height: ${lhVal}; }
+          p { margin: 3px 0; line-height: ${lhVal}; }
+          .card-box { page-break-inside: avoid; break-inside: avoid; }
+        </style>
+      </head>
+      <body>
+        <div class="terminal-header">
+          <div>
+            <div class="name"><span class="prompt">&gt;</span> ${p.name}</div>
+            <div class="contact">$ cat profile.json | grep --intent="${resume.jobIntent}"</div>
+            <div class="contact" style="margin-top:4px;">${p.email} | ${p.phone} | ${p.location}</div>
+          </div>
+          ${avatarTag ? `<div>${avatarTag}</div>` : ""}
+        </div>
+
+        <div class="sec-title">// 01. 职业摘要</div>
+        <p>${resume.summary}</p>
+
+        <div class="sec-title">// 02. 核心技能栈</div>
+        <div>${resume.coreSkills.map((s) => `<span class="code-tag">&lt;${s}/&gt;</span>`).join(" ")}</div>
+
+        <div class="sec-title">// 03. 工作经历</div>
+        ${resume.workExperience
+          .map(
+            (w) => `
+          <div class="work-item">
+            <div class="item-head"><span>${w.company} / ${w.role}</span><span style="font-family:monospace; font-size:12px; color:#64748b;">${w.period}</span></div>
+            <ul>${w.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+          </div>
+        `
+          )
+          .join("")}
+
+        <div class="sec-title">// 04. 项目经历</div>
+        ${resume.projectExperience
+          .map(
+            (pr) => `
+          <div class="project-item">
+            <div class="item-head"><span>${pr.name} / ${pr.role}</span><span style="font-family:monospace; font-size:12px; color:#64748b;">${pr.period}</span></div>
+            <ul>${pr.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+          </div>
+        `
+          )
+          .join("")}
+
+        <div class="sec-title">// 05. 技能工具</div>
+        <p>${resume.skillsAndTools.join(" · ")}</p>
+
+        <div class="sec-title">// 06. 教育背景</div>
+        <p>${resume.education.school} · ${resume.education.degree} (${resume.education.period})</p>
+      </body>
+      </html>
+    `;
+  }
+
+  // 3. Timeline Tech Template
   if (templateId === "timeline-tech") {
     return `
       <!DOCTYPE html>
@@ -213,22 +399,86 @@ export function renderTemplateHTML(
         <meta charset="utf-8">
         <title>${p.name} - 个人简历</title>
         <style>
-          @page { size: A4; margin: 8mm; }
+          @page { size: A4; margin: ${marginVal}; }
           * { box-sizing: border-box; }
-          body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 13.5px; line-height: 1.65; color: #334155; margin: 0; padding: 12px 16px; background: #fff; }
-          .header { border-bottom: 2px solid #2563eb; padding-bottom: 14px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; }
-          .name { font-size: 24px; font-weight: 700; color: #0f172a; }
-          .contact { font-size: 12.5px; color: #64748b; margin-top: 6px; }
-          .sec-title { font-size: 14px; font-weight: 700; color: #1e40af; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 22px; margin-bottom: 12px; display: flex; align-items: center; }
-          .sec-title::after { content: ""; flex: 1; margin-left: 10px; border-bottom: 1px solid #dbeafe; }
-          .timeline { border-left: 2px solid #e2e8f0; margin-left: 6px; padding-left: 18px; position: relative; }
-          .tl-item { position: relative; margin-bottom: 18px; page-break-inside: avoid; break-inside: avoid; }
-          .tl-item::before { content: ""; position: absolute; left: -23px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: #2563eb; border: 2px solid #fff; }
-          .item-head { display: flex; justify-content: space-between; font-weight: 600; font-size: 14px; color: #0f172a; }
-          .tag { display: inline-block; background: #eff6ff; color: #1d4ed8; padding: 3px 10px; border-radius: 4px; font-size: 12px; margin: 3px 5px 3px 0; }
-          ul { margin: 6px 0 8px 0; padding-left: 18px; }
-          li { margin-bottom: 4px; color: #334155; line-height: 1.65; }
-          p { margin: 6px 0; line-height: 1.65; }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+            font-size: ${fontVal};
+            line-height: ${lhVal};
+            color: #334155;
+            margin: 0;
+            padding: 6px 12px;
+            background: #fff;
+            word-break: break-word;
+            overflow-wrap: break-word;
+          }
+          .header {
+            border-bottom: 2px solid ${themeVal};
+            padding-bottom: 10px;
+            margin-bottom: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+          }
+          .name { font-size: 22px; font-weight: 700; color: #0f172a; }
+          .contact { font-size: 12px; color: #64748b; margin-top: 4px; }
+          .sec-title {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: ${themeVal};
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: ${secMT};
+            margin-bottom: ${secMB};
+            display: flex;
+            align-items: center;
+          }
+          .sec-title::after {
+            content: "";
+            flex: 1;
+            margin-left: 12px;
+            height: 1px;
+            background-color: ${themeVal};
+            opacity: 0.25;
+          }
+          .timeline {
+            position: relative;
+            margin-left: 10px;
+            padding-left: 20px;
+            border-left: 2px solid #e2e8f0;
+          }
+          .tl-item {
+            position: relative;
+            margin-bottom: ${itemMB};
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+          .tl-item::before {
+            content: "";
+            position: absolute;
+            left: -25px;
+            top: 5px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: ${themeVal};
+            box-shadow: 0 0 0 3px #ffffff;
+          }
+          .item-head { display: flex; justify-content: space-between; font-weight: 600; font-size: 13.5px; color: #0f172a; }
+          .tag {
+            display: inline-block;
+            background: #f1f5f9;
+            color: ${themeVal};
+            border: 1px solid #cbd5e1;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11.5px;
+            margin: 2px 4px 2px 0;
+          }
+          ul { margin: 3px 0 ${ulMB} 0; padding-left: 18px; }
+          li { margin-bottom: ${liMB}; color: #334155; line-height: ${lhVal}; }
+          p { margin: 3px 0; line-height: ${lhVal}; }
+          .work-item, .project-item, .tl-item, .card-box { page-break-inside: avoid; break-inside: avoid; }
         </style>
       </head>
       <body>
@@ -264,10 +514,10 @@ export function renderTemplateHTML(
         <div class="timeline">
           ${resume.projectExperience
             .map(
-              (p) => `
+              (pr) => `
             <div class="tl-item">
-              <div class="item-head"><span>${p.name} · ${p.role}</span><span>${p.period}</span></div>
-              <ul>${p.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+              <div class="item-head"><span>${pr.name} · ${pr.role}</span><span>${pr.period}</span></div>
+              <ul>${pr.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
             </div>
           `
             )
@@ -284,7 +534,7 @@ export function renderTemplateHTML(
     `;
   }
 
-  // 2. Corporate Banner Template
+  // 4. Corporate Banner Template
   if (templateId === "corporate-banner") {
     return `
       <!DOCTYPE html>
@@ -293,19 +543,21 @@ export function renderTemplateHTML(
         <meta charset="utf-8">
         <title>${p.name} - 简历</title>
         <style>
-          @page { size: A4; margin: 8mm; }
+          @page { size: A4; margin: ${marginVal}; }
           * { box-sizing: border-box; }
-          body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 13.5px; line-height: 1.65; color: #1e293b; margin: 0; padding: 0; background: #fff; }
-          .banner { background: #1e1b4b; color: #fff; padding: 24px 28px; width: 100%; display: flex; justify-content: space-between; align-items: center; border-radius: 6px; }
-          .name { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
-          .contact { font-size: 12.5px; color: #c7d2fe; }
-          .content { padding: 16px 8px; }
-          .sec-title { font-size: 14px; font-weight: 700; color: #312e81; border-left: 4px solid #4f46e5; padding-left: 10px; margin-top: 22px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-          .item-head { display: flex; justify-content: space-between; font-weight: 600; font-size: 14px; margin-top: 14px; color: #0f172a; }
-          .badge { display: inline-block; background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 3px 10px; border-radius: 4px; font-size: 12px; margin: 3px 4px 3px 0; }
-          ul { margin: 6px 0 12px 0; padding-left: 18px; }
-          li { margin-bottom: 5px; color: #334155; line-height: 1.65; }
-          p { margin: 6px 0; line-height: 1.65; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: ${fontVal}; line-height: ${lhVal}; color: #1e293b; margin: 0; padding: 0; background: #fff; word-break: break-word; overflow-wrap: break-word; }
+          .banner { background: ${themeVal}; color: #fff; padding: 16px 20px; width: 100%; display: flex; justify-content: space-between; align-items: center; border-radius: 6px; }
+          .name { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+          .contact { font-size: 12px; color: #c7d2fe; }
+          .content { padding: 10px 4px; }
+          .sec-title { font-size: 13.5px; font-weight: 700; color: ${themeVal}; border-left: 4px solid ${themeVal}; padding-left: 8px; margin-top: ${secMT}; margin-bottom: ${secMB}; text-transform: uppercase; letter-spacing: 0.5px; }
+          .item-head { display: flex; justify-content: space-between; font-weight: 600; font-size: 13.5px; margin-top: 6px; color: #0f172a; }
+          .badge { display: inline-block; background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 2px 8px; border-radius: 4px; font-size: 11.5px; margin: 2px 4px 2px 0; }
+          .work-item, .project-item { margin-bottom: ${itemMB}; page-break-inside: avoid; break-inside: avoid; }
+          ul { margin: 3px 0 ${ulMB} 0; padding-left: 18px; }
+          li { margin-bottom: ${liMB}; color: #334155; line-height: ${lhVal}; }
+          p { margin: 3px 0; line-height: ${lhVal}; }
+          .card-box { page-break-inside: avoid; break-inside: avoid; }
         </style>
       </head>
       <body>
@@ -314,7 +566,7 @@ export function renderTemplateHTML(
             <div class="name">${p.name}</div>
             <div class="contact">${p.email} | ${p.phone} | ${p.location} | 求职意向：${resume.jobIntent}</div>
           </div>
-          ${avatarTag ? `<div><img src="${avatarUrl}" style="width:68px; height:85px; object-fit:cover; border-radius:4px; border:2px solid #fff;" /></div>` : ""}
+          ${avatarTag ? `<div><img src="${avatarUrl}" style="width:64px; height:80px; object-fit:cover; border-radius:4px; border:2px solid #fff;" /></div>` : ""}
         </div>
 
         <div class="content">
@@ -328,8 +580,10 @@ export function renderTemplateHTML(
           ${resume.workExperience
             .map(
               (w) => `
-            <div class="item-head"><span>${w.company} · ${w.role}</span><span>${w.period}</span></div>
-            <ul>${w.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+            <div class="work-item">
+              <div class="item-head"><span>${w.company} · ${w.role}</span><span>${w.period}</span></div>
+              <ul>${w.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+            </div>
           `
             )
             .join("")}
@@ -337,9 +591,11 @@ export function renderTemplateHTML(
           <div class="sec-title">项目经历</div>
           ${resume.projectExperience
             .map(
-              (p) => `
-            <div class="item-head"><span>${p.name} · ${p.role}</span><span>${p.period}</span></div>
-            <ul>${p.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+              (pr) => `
+            <div class="project-item">
+              <div class="item-head"><span>${pr.name} · ${pr.role}</span><span>${pr.period}</span></div>
+              <ul>${pr.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+            </div>
           `
             )
             .join("")}
@@ -355,7 +611,7 @@ export function renderTemplateHTML(
     `;
   }
 
-  // 3. Grid Cards Template
+  // 5. Grid Cards Template
   if (templateId === "grid-cards") {
     return `
       <!DOCTYPE html>
@@ -364,25 +620,26 @@ export function renderTemplateHTML(
         <meta charset="utf-8">
         <title>${p.name} - 简历</title>
         <style>
-          @page { size: A4; margin: 8mm; }
+          @page { size: A4; margin: ${marginVal}; }
           * { box-sizing: border-box; }
-          body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 13.5px; line-height: 1.65; color: #334155; margin: 0; padding: 10px; background: #fff; }
-          .card-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 14px; page-break-inside: avoid; break-inside: avoid; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: ${fontVal}; line-height: ${lhVal}; color: #334155; margin: 0; padding: 6px; background: #fff; word-break: break-word; overflow-wrap: break-word; }
+          .card-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px; margin-bottom: ${itemMB}; page-break-inside: avoid; break-inside: avoid; }
           .card-box:last-child { margin-bottom: 0 !important; }
-          .name { font-size: 22px; font-weight: 700; color: #0f172a; }
-          .contact { font-size: 12.5px; color: #64748b; margin-top: 4px; }
-          .sec-title { font-size: 13.5px; font-weight: 700; color: #059669; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-          .item-head { display: flex; justify-content: space-between; font-weight: 600; font-size: 14px; margin-top: 8px; color: #0f172a; }
-          .pill { display: inline-block; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 3px 10px; border-radius: 12px; font-size: 12px; margin: 3px 4px 3px 0; }
-          ul { margin: 6px 0 8px 0; padding-left: 18px; }
-          li { margin-bottom: 4px; color: #334155; line-height: 1.6; }
-          p { margin: 4px 0; line-height: 1.65; }
+          .name { font-size: 20px; font-weight: 700; color: #0f172a; }
+          .contact { font-size: 12px; color: #64748b; margin-top: 3px; }
+          .sec-title { font-size: 13px; font-weight: 700; color: ${themeVal}; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+          .item-head { display: flex; justify-content: space-between; font-weight: 600; font-size: 13px; margin-top: 4px; color: #0f172a; }
+          .pill { display: inline-block; background: #ecfdf5; color: ${themeVal}; border: 1px solid #a7f3d0; padding: 2px 8px; border-radius: 12px; font-size: 11.5px; margin: 2px 3px 2px 0; }
+          .work-item, .project-item { margin-bottom: 6px; }
+          ul { margin: 3px 0 ${ulMB} 0; padding-left: 18px; }
+          li { margin-bottom: ${liMB}; color: #334155; line-height: ${lhVal}; }
+          p { margin: 3px 0; line-height: ${lhVal}; }
         </style>
       </head>
       <body>
-        <div class="card-box" style="background:#ecfdf5; border-color:#a7f3d0; display:flex; justify-content:space-between; align-items:center;">
+        <div class="card-box" style="background:#f0fdf4; border-color:#bbf7d0; display:flex; justify-content:space-between; align-items:center;">
           <div>
-            <div class="name" style="color:#065f46;">${p.name}</div>
+            <div class="name" style="color:${themeVal};">${p.name}</div>
             <div class="contact" style="color:#047857;">${p.email} | ${p.phone} | ${p.location} | 意向：${resume.jobIntent}</div>
           </div>
           ${avatarTag ? `<div>${avatarTag}</div>` : ""}
@@ -403,8 +660,10 @@ export function renderTemplateHTML(
           ${resume.workExperience
             .map(
               (w) => `
-            <div class="item-head"><span>${w.company} · ${w.role}</span><span>${w.period}</span></div>
-            <ul>${w.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+            <div class="work-item">
+              <div class="item-head"><span>${w.company} · ${w.role}</span><span>${w.period}</span></div>
+              <ul>${w.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+            </div>
           `
             )
             .join("")}
@@ -414,9 +673,11 @@ export function renderTemplateHTML(
           <div class="sec-title">项目经历</div>
           ${resume.projectExperience
             .map(
-              (p) => `
-            <div class="item-head"><span>${p.name} · ${p.role}</span><span>${p.period}</span></div>
-            <ul>${p.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+              (pr) => `
+            <div class="project-item">
+              <div class="item-head"><span>${pr.name} · ${pr.role}</span><span>${pr.period}</span></div>
+              <ul>${pr.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+            </div>
           `
             )
             .join("")}
@@ -425,14 +686,14 @@ export function renderTemplateHTML(
         <div class="card-box">
           <div class="sec-title">技能工具 & 教育背景</div>
           <p><strong>技能：</strong>${resume.skillsAndTools.join(" · ")}</p>
-          <p style="margin-top:6px;"><strong>教育：</strong>${resume.education.school} · ${resume.education.degree} (${resume.education.period})</p>
+          <p style="margin-top:4px;"><strong>教育：</strong>${resume.education.school} · ${resume.education.degree} (${resume.education.period})</p>
         </div>
       </body>
       </html>
     `;
   }
 
-  // Default Modern Sidebar Layout
+  // 6. Default Modern Sidebar Layout
   return `
     <!DOCTYPE html>
     <html>
@@ -440,30 +701,33 @@ export function renderTemplateHTML(
       <meta charset="utf-8">
       <title>${p.name} - 简历</title>
       <style>
-        @page { size: A4; margin: 8mm; }
+        @page { size: A4; margin: ${marginVal}; }
         * { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 13.5px; line-height: 1.6; color: #334155; margin: 0; padding: 0; background: #fff; }
-        .container { display: table; width: 100%; height: auto; table-layout: fixed; }
-        .sidebar { display: table-cell; width: 31%; background: #f8fafc; border-right: 1px solid #e2e8f0; padding: 24px 18px; vertical-align: top; }
-        .main { display: table-cell; width: 69%; padding: 24px 24px; vertical-align: top; }
-        .name { font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0; }
-        .role { font-size: 12px; font-weight: 600; color: #2563eb; margin-bottom: 16px; text-transform: uppercase; }
-        .sidebar-section { margin-bottom: 22px; }
-        .sidebar-title { font-size: 12px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 10px; }
-        .contact-item { font-size: 12px; color: #475569; margin-bottom: 8px; word-break: break-all; }
-        .badge { display: inline-block; background: #e0e7ff; color: #3730a3; padding: 3px 8px; border-radius: 4px; font-size: 11.5px; margin: 2px 2px 2px 0; }
-        .main-title { font-size: 14px; font-weight: 700; color: #0f172a; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-top: 22px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        html, body { height: 100%; min-height: 100%; margin: 0; padding: 0; background: #fff; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: ${fontVal}; line-height: ${lhVal}; color: #334155; word-break: break-word; overflow-wrap: break-word; }
+        .container { display: table; width: 100%; height: 100%; min-height: 100%; table-layout: fixed; }
+        .sidebar { display: table-cell; width: 30%; background: #f8fafc; border-right: 1px solid #e2e8f0; padding: 12px 10px; vertical-align: top; }
+        .main { display: table-cell; width: 70%; padding: 12px 14px; vertical-align: top; }
+        .name { font-size: 20px; font-weight: 700; color: #0f172a; margin: 0 0 3px 0; }
+        .role { font-size: 11.5px; font-weight: 600; color: ${themeVal}; margin-bottom: 12px; text-transform: uppercase; }
+        .sidebar-section { margin-bottom: 12px; page-break-inside: avoid; break-inside: avoid; }
+        .sidebar-title { font-size: 11.5px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid ${themeVal}; padding-bottom: 3px; margin-bottom: 6px; }
+        .contact-item { font-size: 11.5px; color: #475569; margin-bottom: 5px; word-break: break-all; }
+        .badge { display: inline-block; background: #e0e7ff; color: #3730a3; padding: 2px 7px; border-radius: 4px; font-size: 11px; margin: 2px 2px 2px 0; }
+        .main-title { font-size: 13.5px; font-weight: 700; color: #0f172a; border-bottom: 2px solid ${themeVal}; padding-bottom: 3px; margin-top: ${secMT}; margin-bottom: ${secMB}; text-transform: uppercase; letter-spacing: 0.5px; }
         .main-title:first-child { margin-top: 0; }
-        .item-header { display: flex; justify-content: space-between; font-weight: 600; font-size: 14px; margin-top: 12px; color: #0f172a; }
-        ul { margin: 6px 0 12px 0; padding-left: 16px; }
-        li { margin-bottom: 5px; color: #334155; line-height: 1.6; }
-        p { margin: 6px 0; line-height: 1.6; }
+        .item-header { display: flex; justify-content: space-between; font-weight: 600; font-size: 13px; margin-top: 6px; color: #0f172a; }
+        .work-item, .project-item { margin-bottom: ${itemMB}; page-break-inside: avoid; break-inside: avoid; }
+        ul { margin: 3px 0 ${ulMB} 0; padding-left: 16px; }
+        li { margin-bottom: ${liMB}; color: #334155; line-height: ${lhVal}; }
+        p { margin: 3px 0; line-height: ${lhVal}; }
+        .card-box { page-break-inside: avoid; break-inside: avoid; }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="sidebar">
-          ${avatarTag ? `<div style="margin-bottom: 14px;">${avatarTag}</div>` : ""}
+          ${avatarTag ? `<div style="margin-bottom: 10px;">${avatarTag}</div>` : ""}
           <div class="name">${p.name}</div>
           <div class="role">${resume.jobIntent}</div>
 
@@ -481,12 +745,12 @@ export function renderTemplateHTML(
 
           <div class="sidebar-section">
             <div class="sidebar-title">技能工具</div>
-            <p style="font-size:12px; color:#475569; line-height:1.6;">${resume.skillsAndTools.join(" · ")}</p>
+            <p style="font-size:11.5px; color:#475569; line-height:${lhVal};">${resume.skillsAndTools.join(" · ")}</p>
           </div>
 
           <div class="sidebar-section">
             <div class="sidebar-title">教育背景</div>
-            <p style="font-size:12px; font-weight:600; margin-bottom:3px;">${resume.education.school}</p>
+            <p style="font-size:11.5px; font-weight:600; margin-bottom:2px;">${resume.education.school}</p>
             <p style="font-size:11px; color:#64748b;">${resume.education.degree} (${resume.education.period})</p>
           </div>
         </div>
@@ -499,8 +763,10 @@ export function renderTemplateHTML(
           ${resume.workExperience
             .map(
               (w) => `
-            <div class="item-header"><span>${w.company} · ${w.role}</span><span>${w.period}</span></div>
-            <ul>${w.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+            <div class="work-item">
+              <div class="item-header"><span>${w.company} · ${w.role}</span><span>${w.period}</span></div>
+              <ul>${w.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+            </div>
           `
             )
             .join("")}
@@ -508,9 +774,11 @@ export function renderTemplateHTML(
           <div class="main-title">项目经历</div>
           ${resume.projectExperience
             .map(
-              (p) => `
-            <div class="item-header"><span>${p.name} · ${p.role}</span><span>${p.period}</span></div>
-            <ul>${p.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+              (pr) => `
+            <div class="project-item">
+              <div class="item-header"><span>${pr.name} · ${pr.role}</span><span>${pr.period}</span></div>
+              <ul>${pr.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+            </div>
           `
             )
             .join("")}

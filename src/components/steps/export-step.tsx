@@ -22,6 +22,8 @@ import { copyToClipboard, exportResumeAsPDF, exportResumeAsWord, formatResumeAsT
 import { LegoDesigner } from "@/components/legoDesigner";
 import { LayoutGrid, Sparkles } from "lucide-react";
 
+import { TemplateCustomizer } from "@/components/shared/template-customizer";
+
 export function ExportStep() {
   const {
     userInput,
@@ -29,6 +31,7 @@ export function ExportStep() {
     analysisResult,
     setAnalysisResult,
     selectedTemplate,
+    templateOptions,
     customTemplateHTML,
     copied,
     setCopied,
@@ -98,11 +101,11 @@ export function ExportStep() {
   };
 
   const handleExportWord = () => {
-    exportResumeAsWord(finalResume, selectedTemplate, customTemplateHTML);
+    exportResumeAsWord(finalResume, selectedTemplate, customTemplateHTML, templateOptions);
   };
 
   const handleExportPDF = () => {
-    exportResumeAsPDF(finalResume, selectedTemplate, customTemplateHTML);
+    exportResumeAsPDF(finalResume, selectedTemplate, customTemplateHTML, templateOptions);
   };
 
   return (
@@ -148,8 +151,9 @@ export function ExportStep() {
         </div>
       ) : (
         <>
-          {/* Template Selector */}
+          {/* Template Selector & Customizer */}
           <TemplateSelector />
+          <TemplateCustomizer />
 
       {/* Photo Avatar Config Card */}
       <Card className="mb-6 border-indigo-100 bg-indigo-50/20">

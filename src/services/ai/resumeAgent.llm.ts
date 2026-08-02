@@ -49,36 +49,88 @@ export async function runLLMResumeAnalysis(
   input: UserInput,
   optimizeStyle: OptimizeStyle = "ai-product"
 ): Promise<AnalysisResult> {
+  return runLLMResumeAnalysisStream(input, optimizeStyle);
+}
+
+export type StageName = "jd-analysis" | "diagnosis" | "optimize" | "interview";
+
+export interface StageUpdatePayload {
+  stage: StageName;
+  status: "start" | "complete";
+  data?: Partial<AnalysisResult>;
+}
+
+export async function runLLMResumeAnalysisStream(
+  input: UserInput,
+  optimizeStyle: OptimizeStyle = "ai-product",
+  onStageUpdate?: (payload: StageUpdatePayload) => void
+): Promise<AnalysisResult> {
+  onStageUpdate?.({ stage: "jd-analysis", status: "start" });
   const jd = await chatCompletionJSON<JDAnalysisResult>({
     system: RESUME_AGENT_SYSTEM_PROMPT,
     user: buildAnalyzeCorePrompt(input),
     maxTokens: 3000,
     schema: jdAnalysisResponseSchema,
   });
+  onStageUpdate?.({
+    stage: "jd-analysis",
+    status: "complete",
+    data: { jdAnalysis: jd.jdAnalysis },
+  });
 
+  onStageUpdate?.({ stage: "diagnosis", status: "start" });
   const diagnosisMatch = await chatCompletionJSON<DiagnosisMatchResult>({
     system: RESUME_AGENT_SYSTEM_PROMPT,
     user: buildAnalyzeDiagnosisPrompt(input),
     maxTokens: 4000,
     schema: diagnosisMatchResponseSchema,
   });
+  onStageUpdate?.({
+    stage: "diagnosis",
+    status: "complete",
+    data: {
+      diagnosis: diagnosisMatch.diagnosis,
+      matchItems: diagnosisMatch.matchItems,
+      followUpQuestions: diagnosisMatch.followUpQuestions,
+    },
+  });
 
   const coreSummary = buildCoreSummary(diagnosisMatch);
 
-  const [optimizeResume, interview] = await Promise.all([
-    chatCompletionJSON<OptimizeResumeResult>({
-      system: RESUME_AGENT_SYSTEM_PROMPT,
-      user: buildAnalyzeOutputPrompt(input, optimizeStyle, coreSummary),
-      maxTokens: 4500,
-      schema: optimizeResumeResponseSchema,
-    }),
-    chatCompletionJSON<InterviewResult>({
-      system: RESUME_AGENT_SYSTEM_PROMPT,
-      user: buildAnalyzeInterviewPrompt(input, coreSummary),
-      maxTokens: 3500,
-      schema: interviewResponseSchema,
-    }),
-  ]);
+  onStageUpdate?.({ stage: "optimize", status: "start" });
+  const optimizeResumePromise = chatCompletionJSON<OptimizeResumeResult>({
+    system: RESUME_AGENT_SYSTEM_PROMPT,
+    user: buildAnalyzeOutputPrompt(input, optimizeStyle, coreSummary),
+    maxTokens: 4500,
+    schema: optimizeResumeResponseSchema,
+  });
+
+  onStageUpdate?.({ stage: "interview", status: "start" });
+  const interviewPromise = chatCompletionJSON<InterviewResult>({
+    system: RESUME_AGENT_SYSTEM_PROMPT,
+    user: buildAnalyzeInterviewPrompt(input, coreSummary),
+    maxTokens: 3500,
+    schema: interviewResponseSchema,
+  });
+
+  const [optimizeResume, interview] = await Promise.all([optimizeResumePromise, interviewPromise]);
+
+  onStageUpdate?.({
+    stage: "optimize",
+    status: "complete",
+    data: {
+      optimizedItems: optimizeResume.optimizedItems,
+      finalResume: optimizeResume.finalResume,
+    },
+  });
+
+  onStageUpdate?.({
+    stage: "interview",
+    status: "complete",
+    data: {
+      interviewPrep: interview.interviewPrep,
+    },
+  });
 
   const raw: AnalysisResult = {
     jdAnalysis: jd.jdAnalysis,
@@ -92,6 +144,7 @@ export async function runLLMResumeAnalysis(
 
   return normalizeAnalysisResult(raw, input);
 }
+
 
 export async function runLLMRegenerateOptimizedItems(
   input: UserInput,

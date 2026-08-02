@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useLegoDesignerStore } from '@/store/lego-designer-store';
 import { useResumeStore } from '@/store/resume-store';
 import { buildLegoSchemaFromResume } from '@/lib/lego-adapter';
@@ -13,7 +13,7 @@ import {
   FileText,
   Maximize2,
   Minimize2,
-  Maximize
+  Upload
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -22,9 +22,10 @@ interface ToolbarProps {
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScreen }) => {
-  const { scale, setScale, undo, redo, undoStack, redoStack, setSchema, schema } =
+  const { scale, setScale, undo, redo, undoStack, redoStack, setSchema } =
     useLegoDesignerStore();
   const { userInput, analysisResult } = useResumeStore();
+  const jsonFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleReloadAiData = () => {
     if (confirm('确定要用最新 AI 润色数据覆盖当前积木画布吗？未保存的手动拖拽调整将被重置。')) {
@@ -33,15 +34,33 @@ export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScre
     }
   };
 
+  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target?.result as string);
+        if (parsed && parsed.componentsTree) {
+          setSchema(parsed, true);
+        } else {
+          alert('无效的积木配置文件');
+        }
+      } catch {
+        alert('解析 JSON 失败，请检查文件格式');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const handleFitWidth = () => {
-    // Canvas is 820px wide
     const availableWidth = window.innerWidth - 650;
     const computedScale = Math.max(0.4, Math.min(1.2, Number((availableWidth / 820).toFixed(2))));
     setScale(computedScale);
   };
 
   const handleFitPage = () => {
-    // Fit full A4 page (1160px height)
     const availableHeight = isFullScreen ? window.innerHeight - 140 : 600;
     const computedScale = Math.max(0.35, Math.min(1.1, Number((availableHeight / 1160).toFixed(2))));
     setScale(computedScale);
@@ -57,7 +76,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScre
         <div>
           <h2 className="text-sm font-bold text-white tracking-wide">积木简历排版设计器</h2>
           <p className="text-[10px] text-slate-400">
-            全屏编辑 · 画布拖拽 · 尺寸自适应 · 像素级 PDF 导出
+            全屏编辑 · 画布拖拽 · 撤销重做 · 像素级 PDF 导出
           </p>
         </div>
       </div>
@@ -124,6 +143,21 @@ export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScre
 
       {/* Right Actions */}
       <div className="flex items-center gap-2">
+        <input
+          ref={jsonFileInputRef}
+          type="file"
+          accept=".json,application/json"
+          className="hidden"
+          onChange={handleImportJSON}
+        />
+        <button
+          className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-1 border border-slate-700 transition-all"
+          onClick={() => jsonFileInputRef.current?.click()}
+          title="导入积木 JSON 配置"
+        >
+          <Upload className="w-3.5 h-3.5 text-blue-400" />
+          导入 JSON
+        </button>
         <button
           className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-1.5 border border-slate-700 transition-all"
           onClick={onToggleFullScreen}

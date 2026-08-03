@@ -39,16 +39,20 @@ export async function analyzeResumeServer(
 export async function regenerateOptimizedItemsServer(
   input: UserInput,
   style: OptimizeStyle
-): Promise<{ optimizedItems: AnalysisResult["optimizedItems"]; mode: AIMode }> {
+): Promise<{
+  optimizedItems: AnalysisResult["optimizedItems"];
+  finalResume?: AnalysisResult["finalResume"];
+  mode: AIMode;
+}> {
   const mode = currentMode();
 
   if (mode === "llm") {
-    const optimizedItems = await runLLMRegenerateOptimizedItems(input, style);
+    const { optimizedItems } = await runLLMRegenerateOptimizedItems(input, style);
     return { optimizedItems, mode };
   }
 
-  const optimizedItems = await runMockRegenerateOptimizedItems(style);
-  return { optimizedItems, mode };
+  const { optimizedItems, finalResume } = await runMockRegenerateOptimizedItems(input, style);
+  return { optimizedItems, finalResume, mode };
 }
 
 export async function generateFollowUpBulletServer(

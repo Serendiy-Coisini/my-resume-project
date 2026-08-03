@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Check, Code2, FileCode2, FileUp, Layout, Loader2, Sparkles } from "lucide-react";
+import { Check, Code2, FileCode2, Layout, Loader2, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,7 +18,11 @@ import { TEMPLATES, type TemplateId } from "@/lib/resume-templates";
 import { extractResumeTemplate } from "@/services/ai/resumeAgent";
 import { useResumeStore } from "@/store/resume-store";
 
-export function TemplateSelector() {
+interface TemplateSelectorProps {
+  onImportToLego?: (templateId: TemplateId) => void;
+}
+
+export function TemplateSelector({ onImportToLego }: TemplateSelectorProps = {}) {
   const {
     selectedTemplate,
     setSelectedTemplate,
@@ -63,10 +67,15 @@ export function TemplateSelector() {
         setTimeout(() => setSuccessMsg(null), 5000);
       } else {
         const extractedHTML = await extractResumeTemplate(content);
-        if (extractedHTML) {
-          setCustomTemplateHTML(extractedHTML);
+        const cleanHTML = (extractedHTML || "")
+          .replace(/```html\s*/gi, "")
+          .replace(/```\s*/g, "")
+          .trim();
+
+        if (cleanHTML) {
+          setCustomTemplateHTML(cleanHTML);
           setSelectedTemplate("custom");
-          setSuccessMsg("🎉 成功根据你上传的文件识别并生成专属 HTML/CSS 模板！已自动为你应用。");
+          setSuccessMsg("🎉 成功根据您上传的文件精准识别并生成专属 HTML/CSS 布局模板！已自动应用。");
           setTimeout(() => setSuccessMsg(null), 6000);
         } else {
           throw new Error("AI 未能识别出有效的 HTML 模板结构，请确认文件格式");
@@ -147,9 +156,24 @@ export function TemplateSelector() {
                   {tpl.description}
                 </p>
 
-                <Badge variant={isSelected ? "default" : "secondary"} className="text-[10px] font-normal px-1.5 py-0">
-                  {tpl.tag}
-                </Badge>
+                <div className="flex items-center justify-between gap-1 pt-1 border-t border-neutral-100 mt-1">
+                  <Badge variant={isSelected ? "default" : "secondary"} className="text-[10px] font-normal px-1.5 py-0">
+                    {tpl.tag}
+                  </Badge>
+                  {onImportToLego && (
+                    <button
+                      type="button"
+                      title="一键将此固定模板导入积木排版设计器自由微调"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onImportToLego(tpl.id as TemplateId);
+                      }}
+                      className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-1 py-0.5 rounded transition-all"
+                    >
+                      🧱 积木微调
+                    </button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           );

@@ -1,8 +1,23 @@
-"use client";
-
-import { useRef, useState } from "react";
-import { Camera, Check, ChevronLeft, Copy, Download, FileSpreadsheet, FileText, Printer, User } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import {
+  Camera,
+  Check,
+  ChevronLeft,
+  Copy,
+  Download,
+  ExternalLink,
+  FileSpreadsheet,
+  FileText,
+  GitCompare,
+  LayoutGrid,
+  Maximize2,
+  Minimize2,
+  Printer,
+  Sparkles,
+  User,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -15,14 +30,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { ResumeTemplateView } from "@/components/shared/resume-template-view";
 import { TemplateSelector } from "@/components/shared/template-selector";
-import { EmptyState, SectionTitle } from "@/components/shared/ui-helpers";
-import { useResumeStore } from "@/store/resume-store";
-import { copyToClipboard, exportResumeAsPDF, exportResumeAsWord, formatResumeAsText } from "@/lib/utils";
-
-import { LegoDesigner } from "@/components/legoDesigner";
-import { LayoutGrid, Sparkles } from "lucide-react";
-
 import { TemplateCustomizer } from "@/components/shared/template-customizer";
+import { LegoDesigner } from "@/components/legoDesigner";
+import { EmptyState, SectionTitle } from "@/components/shared/ui-helpers";
+import { buildLegoSchemaFromResume } from "@/lib/lego-adapter";
+import { useLegoDesignerStore } from "@/store/lego-designer-store";
+import type { TemplateId } from "@/types/resume";
+import { useResumeStore } from "@/store/resume-store";
+import { copyToClipboard, dataUrlToBlobUrl, exportResumeAsPDF, exportResumeAsWord, formatResumeAsText } from "@/lib/utils";
 
 export function ExportStep() {
   const {
@@ -31,6 +46,7 @@ export function ExportStep() {
     analysisResult,
     setAnalysisResult,
     selectedTemplate,
+    setSelectedTemplate,
     templateOptions,
     customTemplateHTML,
     copied,
@@ -38,8 +54,17 @@ export function ExportStep() {
     setCurrentStep,
   } = useResumeStore();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"standard" | "lego">("standard");
+  const [viewMode, setViewMode] = useState<"standard" | "compare" | "lego">("standard");
+  const [compareLeftTab, setCompareLeftTab] = useState<"file" | "text">("file");
+  const [isWideLayout, setIsWideLayout] = useState<boolean>(true);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
+
+  const pdfBlobUrl = useMemo(() => {
+    if (userInput.rawFileType === "pdf" && userInput.rawFileDataUrl) {
+      return dataUrlToBlobUrl(userInput.rawFileDataUrl);
+    }
+    return "";
+  }, [userInput.rawFileType, userInput.rawFileDataUrl]);
 
   if (!analysisResult) {
     return (
@@ -68,7 +93,7 @@ export function ExportStep() {
           finalResume: {
             ...finalResume,
             personalInfo: {
-              ...finalResume.personalInfo,
+              ...(finalResume.personalInfo || { name: "", email: "", phone: "", location: "" }),
               avatarUrl: base64,
             },
           },
@@ -85,7 +110,7 @@ export function ExportStep() {
       finalResume: {
         ...finalResume,
         personalInfo: {
-          ...finalResume.personalInfo,
+          ...(finalResume.personalInfo || { name: "", email: "", phone: "", location: "" }),
           avatarUrl: "",
         },
       },
@@ -108,38 +133,60 @@ export function ExportStep() {
     exportResumeAsPDF(finalResume, selectedTemplate, customTemplateHTML, templateOptions);
   };
 
+  const handleImportToLego = (tplId: TemplateId) => {
+    setSelectedTemplate(tplId);
+    const freshSchema = buildLegoSchemaFromResume(userInput, analysisResult, tplId, templateOptions, customTemplateHTML);
+    useLegoDesignerStore.getState().setSchema(freshSchema, true);
+    setViewMode("lego");
+  };
+
+  const hasRawPdf = userInput.rawFileType === "pdf" && Boolean(userInput.rawFileDataUrl);
+  const hasRawWord = userInput.rawFileType === "word";
+
   return (
     <div>
       <SectionTitle
-        title="最终简历导出"
-        description="预览与配置喜欢的排版模版，或使用积木设计器自由拖拽编辑，一键导出精美 Word / PDF 文件"
+        title="最终简历导出与对比"
+        description="支持【原简历 vs 最终简历】宽屏无损双栏对比（支持 PDF/Word 原件直接预览），一键导出精美 Word / PDF 文件"
       />
 
       {/* Mode Switcher Tabs */}
       <div className="mb-6 flex justify-center">
-        <div className="bg-slate-200/80 p-1 rounded-xl shadow-inner inline-flex border border-slate-300/60">
+        <div className="bg-slate-200/80 p-1 rounded-xl shadow-inner inline-flex border border-slate-300/60 flex-wrap justify-center gap-1">
           <button
             type="button"
-            className={`px-5 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
               viewMode === "standard"
                 ? "bg-white text-blue-600 shadow-md scale-[1.02]"
                 : "text-slate-600 hover:text-slate-900"
             }`}
             onClick={() => setViewMode("standard")}
           >
-            <Sparkles className="w-4 h-4 text-amber-500" />
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
             标准模版预览导出
           </button>
           <button
             type="button"
-            className={`px-5 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
-              viewMode === "lego"
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              viewMode === "compare"
                 ? "bg-blue-600 text-white shadow-md shadow-blue-500/30 scale-[1.02]"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+            onClick={() => setViewMode("compare")}
+          >
+            <GitCompare className="w-3.5 h-3.5 text-emerald-300" />
+            ⚖️ 原简历 vs 最终简历 对照
+          </button>
+          <button
+            type="button"
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              viewMode === "lego"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30 scale-[1.02]"
                 : "text-slate-600 hover:text-slate-900"
             }`}
             onClick={() => setViewMode("lego")}
           >
-            <LayoutGrid className="w-4 h-4 text-emerald-400" />
+            <LayoutGrid className="w-3.5 h-3.5 text-emerald-400" />
             🧱 积木自由排版设计器
           </button>
         </div>
@@ -149,10 +196,181 @@ export function ExportStep() {
         <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mb-6 h-[88vh] min-h-[750px]">
           <LegoDesigner />
         </div>
+      ) : viewMode === "compare" ? (
+        <div className={isWideLayout ? "-mx-4 sm:-mx-6 lg:-mx-10 space-y-4" : "space-y-4"}>
+          {/* Compare Control Bar */}
+          <div className="rounded-xl border border-blue-200/80 bg-gradient-to-r from-blue-50/90 via-indigo-50/40 to-purple-50/60 p-4 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs text-blue-950 font-medium">
+              <GitCompare className="h-4 w-4 text-blue-600 shrink-0" />
+              <span>
+                <strong>原简历 vs 最终优化简历 对照模式</strong>：左侧为您提交的原始履历，右侧为 AI 基于目标 JD 重构精炼后的最终成稿。
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="bg-white text-blue-700 border-blue-200 text-[11px]">
+                修改优化 {analysisResult.optimizedItems?.length || 0} 处
+              </Badge>
+              <Badge variant="outline" className="bg-white text-emerald-700 border-emerald-200 text-[11px]">
+                匹配度 {analysisResult.diagnosis?.overallScore ?? 0}/100
+              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsWideLayout(!isWideLayout)}
+                className="text-xs bg-white border-blue-200 text-blue-700 hover:bg-blue-50 ml-1"
+              >
+                {isWideLayout ? (
+                  <>
+                    <Minimize2 className="h-3.5 w-3.5 mr-1" />
+                    标准宽度
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="h-3.5 w-3.5 mr-1 text-blue-600" />
+                    宽屏展开对比
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 min-h-[850px]">
+            {/* Left: Original Resume File or Text */}
+            <Card className="flex flex-col border-neutral-200/90 shadow-xs bg-white overflow-hidden">
+              <CardHeader className="py-3 px-4 bg-neutral-100/90 border-b border-neutral-200/80 flex flex-wrap items-center justify-between gap-2 space-y-0">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-amber-500" />
+                  <CardTitle className="text-xs font-bold text-neutral-800">
+                    原简历（原始材料）
+                  </CardTitle>
+                  {userInput.rawFileName && (
+                    <span className="text-[11px] text-neutral-500 truncate max-w-[180px]">
+                      ({userInput.rawFileName})
+                    </span>
+                  )}
+                </div>
+
+                {/* Left Tabs: File preview vs Extracted text */}
+                <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-neutral-200">
+                  {(hasRawPdf || hasRawWord) && (
+                    <button
+                      type="button"
+                      onClick={() => setCompareLeftTab("file")}
+                      className={`px-2.5 py-1 rounded text-[11px] font-medium transition-all ${
+                        compareLeftTab === "file"
+                          ? "bg-blue-600 text-white font-bold shadow-2xs"
+                          : "text-neutral-600 hover:bg-neutral-100"
+                      }`}
+                    >
+                      {hasRawPdf ? "📄 PDF 原件预览" : "📄 Word 原件信息"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setCompareLeftTab("text")}
+                    className={`px-2.5 py-1 rounded text-[11px] font-medium transition-all ${
+                      compareLeftTab === "text" || (!hasRawPdf && !hasRawWord)
+                        ? "bg-blue-600 text-white font-bold shadow-2xs"
+                        : "text-neutral-600 hover:bg-neutral-100"
+                    }`}
+                  >
+                    📝 提炼文本
+                  </button>
+                </div>
+              </CardHeader>
+
+              <CardContent className="flex-1 p-3 overflow-y-auto max-h-[900px]">
+                {compareLeftTab === "file" && hasRawPdf ? (
+                  <div className="flex flex-col h-full space-y-2">
+                    <div className="flex items-center justify-between px-1 text-xs text-neutral-500">
+                      <span className="text-[11px] font-medium text-slate-700">原文件 PDF 页面原生预览 (100% 原版面)</span>
+                      {pdfBlobUrl && (
+                        <a
+                          href={pdfBlobUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline text-[11px] flex items-center gap-1 font-medium bg-blue-50 px-2 py-0.5 rounded border border-blue-200"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          在新标签页放大查看 PDF
+                        </a>
+                      )}
+                    </div>
+                    {pdfBlobUrl ? (
+                      <object
+                        data={pdfBlobUrl}
+                        type="application/pdf"
+                        className="w-full h-[820px] rounded-lg border border-slate-300 bg-white shadow-inner"
+                      >
+                        <iframe
+                          src={pdfBlobUrl}
+                          title="Original PDF Resume Preview"
+                          className="w-full h-[820px] rounded-lg border border-slate-300 bg-white shadow-inner"
+                        />
+                      </object>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-[400px] border border-dashed rounded-lg bg-neutral-50 p-6 text-center text-sm text-neutral-500">
+                        <p>PDF 原件加载中，您也可以切换至【📝 提炼文本】进行对比</p>
+                      </div>
+                    )}
+                  </div>
+                ) : compareLeftTab === "file" && hasRawWord ? (
+                  <div className="space-y-3">
+                    <div className="rounded-lg border border-blue-200 bg-blue-50/80 p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs text-blue-950 font-medium">
+                        <FileSpreadsheet className="h-4 w-4 text-blue-600" />
+                        <span>Word 原始文件: {userInput.rawFileName}</span>
+                      </div>
+                      {userInput.rawFileDataUrl && (
+                        <a
+                          href={userInput.rawFileDataUrl}
+                          download={userInput.rawFileName || "原简历.docx"}
+                          className="text-xs text-blue-700 bg-white border border-blue-200 px-2.5 py-1 rounded hover:bg-blue-50 font-medium shadow-2xs"
+                        >
+                          下载原 Word 文档
+                        </a>
+                      )}
+                    </div>
+                    <div className="rounded-lg border border-neutral-200 bg-white p-4 overflow-y-auto max-h-[780px] shadow-inner">
+                      <pre className="font-sans text-xs leading-relaxed whitespace-pre-wrap text-neutral-800 font-normal">
+                        {userInput.originalResume || "暂无文本数据"}
+                      </pre>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-neutral-200/80 bg-neutral-50/40 p-4 overflow-y-auto max-h-[820px] min-h-[600px] shadow-inner">
+                    <pre className="font-sans text-xs leading-relaxed whitespace-pre-wrap text-neutral-800 font-normal">
+                      {userInput.originalResume || "暂无原简历数据"}
+                    </pre>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Right: Final Optimized Resume Preview */}
+            <Card className="flex flex-col border-blue-200/90 shadow-xs bg-white overflow-hidden">
+              <CardHeader className="py-3 px-4 bg-gradient-to-r from-blue-50 to-indigo-50/40 border-b border-blue-200/70 flex flex-row items-center justify-between space-y-0">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <CardTitle className="text-xs font-bold text-blue-950">
+                    最终优化简历（AI 重构成品）
+                  </CardTitle>
+                </div>
+                <Badge variant="outline" className="text-[10px] font-medium bg-emerald-50 text-emerald-700 border-emerald-200">
+                  高清模版解析
+                </Badge>
+              </CardHeader>
+              <CardContent className="flex-1 p-3 overflow-y-auto max-h-[900px] space-y-3">
+                <TemplateSelector onImportToLego={handleImportToLego} />
+                <ResumeTemplateView resume={finalResume} templateId={selectedTemplate} />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       ) : (
-        <>
+        <div className="space-y-6">
           {/* Template Selector & Customizer */}
-          <TemplateSelector />
+          <TemplateSelector onImportToLego={handleImportToLego} />
           <TemplateCustomizer />
 
       {/* Photo Avatar Config Card */}
@@ -266,13 +484,23 @@ export function ExportStep() {
       <div className="mb-6">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-neutral-900">当前模板实时预览</h3>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-xs text-neutral-500">
-                <FileText className="h-3.5 w-3.5" />
-                查看纯文本格式
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setViewMode("compare")}
+              className="text-xs text-blue-700 border-blue-200 bg-blue-50/60 hover:bg-blue-100/80 font-medium"
+            >
+              <GitCompare className="h-3.5 w-3.5 mr-1 text-blue-600" />
+              开启原简历双栏对比
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-xs text-neutral-500">
+                  <FileText className="h-3.5 w-3.5" />
+                  查看纯文本格式
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>纯文本简历</DialogTitle>
@@ -292,6 +520,7 @@ export function ExportStep() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <ResumeTemplateView resume={finalResume} templateId={selectedTemplate} />
@@ -325,7 +554,7 @@ export function ExportStep() {
           </div>
         </CardContent>
       </Card>
-      </>
+        </div>
       )}
 
       <div className="mt-6 flex justify-start">

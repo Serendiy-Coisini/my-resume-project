@@ -19,39 +19,63 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
+export function dataUrlToBlobUrl(dataUrl: string): string {
+  if (!dataUrl) return "";
+  if (dataUrl.startsWith("blob:")) return dataUrl;
+  try {
+    const parts = dataUrl.split(",");
+    if (parts.length < 2) return dataUrl;
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : "application/pdf";
+    const bstr = atob(parts[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    const blob = new Blob([u8arr], { type: mime });
+    return URL.createObjectURL(blob);
+  } catch (e) {
+    console.error("dataUrlToBlobUrl error:", e);
+    return dataUrl;
+  }
+}
+
 export function formatResumeAsText(resume: import("@/types/resume").FinalResume): string {
+  if (!resume) return "";
+  const p = resume.personalInfo || { name: "求职者", email: "", phone: "", location: "" };
   const lines: string[] = [];
 
-  lines.push(resume.personalInfo.name);
+  lines.push(p.name || "");
   lines.push(
-    `${resume.personalInfo.email} | ${resume.personalInfo.phone} | ${resume.personalInfo.location}`
+    `${p.email || ""} | ${p.phone || ""} | ${p.location || ""}`
   );
   lines.push("");
-  lines.push(`求职意向：${resume.jobIntent}`);
+  lines.push(`求职意向：${resume.jobIntent || ""}`);
   lines.push("");
   lines.push("职业摘要");
-  lines.push(resume.summary);
+  lines.push(resume.summary || "");
   lines.push("");
   lines.push("核心能力");
-  resume.coreSkills.forEach((s) => lines.push(`• ${s}`));
+  (resume.coreSkills || []).forEach((s) => lines.push(`• ${s}`));
   lines.push("");
   lines.push("工作经历");
-  resume.workExperience.forEach((w) => {
-    lines.push(`${w.company} | ${w.role} | ${w.period}`);
-    w.bullets.forEach((b) => lines.push(`  • ${b}`));
+  (resume.workExperience || []).forEach((w) => {
+    lines.push(`${w.company || ""} | ${w.role || ""} | ${w.period || ""}`);
+    (w.bullets || []).forEach((b) => lines.push(`  • ${b}`));
     lines.push("");
   });
   lines.push("项目经历");
-  resume.projectExperience.forEach((p) => {
-    lines.push(`${p.name} | ${p.role} | ${p.period}`);
-    p.bullets.forEach((b) => lines.push(`  • ${b}`));
+  (resume.projectExperience || []).forEach((proj) => {
+    lines.push(`${proj.name || ""} | ${proj.role || ""} | ${proj.period || ""}`);
+    (proj.bullets || []).forEach((b) => lines.push(`  • ${b}`));
     lines.push("");
   });
   lines.push("技能工具");
-  lines.push(resume.skillsAndTools.join(" · "));
+  lines.push((resume.skillsAndTools || []).join(" · "));
   lines.push("");
   lines.push("教育背景");
-  lines.push(`${resume.education.school} | ${resume.education.degree} | ${resume.education.period}`);
+  lines.push(`${resume.education?.school || ""} | ${resume.education?.degree || ""} | ${resume.education?.period || ""}`);
 
   return lines.join("\n");
 }
@@ -75,7 +99,8 @@ export function exportResumeAsWord(
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${resume.personalInfo.name}_个人简历.doc`;
+  const name = resume?.personalInfo?.name || "个人简历";
+  a.download = `${name}_个人简历.doc`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -91,7 +116,8 @@ export function exportResumeAsPDF(
   const printWindow = window.open("", "_blank");
   if (!printWindow) return;
 
-  const docTitle = `${resume.personalInfo.name}_个人简历`;
+  const name = resume?.personalInfo?.name || "个人简历";
+  const docTitle = `${name}_个人简历`;
   const htmlContent = renderTemplateHTML(resume, templateId, customTemplateHTML, options);
 
   const printStyle = `

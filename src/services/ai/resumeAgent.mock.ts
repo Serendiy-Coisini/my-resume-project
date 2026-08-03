@@ -1,4 +1,5 @@
 import { delay } from "@/lib/utils";
+import { updateFinalResumeWithOptimizedItems } from "@/lib/ai/prompts";
 import type {
   AnalysisResult,
   OptimizeStyle,
@@ -6,10 +7,13 @@ import type {
 } from "@/types/resume";
 
 const STYLE_LABELS: Record<OptimizeStyle, string> = {
-  concise: "更简洁",
-  "reduce-exaggeration": "降低夸张",
-  "ai-product": "更偏 AI 产品",
-  "tob-saas": "更偏 ToB SaaS",
+  concise: "标准精炼 (STAR法则)",
+  "data-driven": "突出数据量化",
+  leadership: "强化主导力与贡献",
+  "reduce-exaggeration": "务实保真 (降低夸张)",
+  "jd-matched": "深度贴合目标 JD",
+  "ai-product": "标准精炼 (STAR法则)",
+  "tob-saas": "深度贴合目标 JD",
 };
 
 function buildJDAnalysis(_input: UserInput): AnalysisResult["jdAnalysis"] {
@@ -248,66 +252,190 @@ function buildFollowUpQuestions(): AnalysisResult["followUpQuestions"] {
   ];
 }
 
-function buildOptimizedItems(
-  style: OptimizeStyle = "ai-product"
-): AnalysisResult["optimizedItems"] {
-  const styleNote = STYLE_LABELS[style];
+const ZHANG_MING_BULLETS = [
+  {
+    id: "opt-1",
+    section: "职业摘要",
+    before: "3年互联网产品经理经验，专注于 AI 智能体与 ToB SaaS 产品落地。熟练掌握大模型 Prompt 调优、工作流设计与 RAG 检索增强体系，具备从 0 到 1 打造 AI 产品的闭环经验。",
+  },
+  {
+    id: "opt-2",
+    section: "工作经历",
+    before: "主导 Enterprise AI 助手产品规划与落地，覆盖智能问答、文档分析与客服自动化三大场景；",
+  },
+  {
+    id: "opt-3",
+    section: "工作经历",
+    before: "优化 Prompt 架构与 RAG 检索链路，将知识库回答准确率提升 25%，响应时延降低 40%；",
+  },
+  {
+    id: "opt-4",
+    section: "工作经历",
+    before: "建立 AI 效果评测基准体系 (Benchmarking)，收集 1000+ 真实反馈轮次，推动产品月活跃用户突破 50 万。",
+  },
+  {
+    id: "opt-5",
+    section: "工作经历",
+    before: "负责自动化流程建构器设计，服务超过 200 家中大型企事业单位；",
+  },
+];
 
+function buildOptimizedItems(
+  style: OptimizeStyle = "concise"
+): AnalysisResult["optimizedItems"] {
+  const styleNote = STYLE_LABELS[style] || "标准精炼";
+
+  if (style === "leadership") {
+    return [
+      {
+        ...ZHANG_MING_BULLETS[0],
+        after: "拥有 3 年互联网产品经理经验，主导 0 到 1 的 AI 智能体与 ToB SaaS 产品全链路落地。精通 Prompt 调优、工作流设计与 RAG 架构，驱动多个 AI 产品从概念验证到规模化交付，累计贡献核心产品线月活超 50 万。",
+        reason: "原摘要偏描述性，改用“主导”、“驱动”、“贡献”等主动动词，并量化月活成果，增强主导力与贡献感。",
+        riskWarning: "需确保“主导0到1”与后文经历一致，避免过度承诺；月活数据需与具体产品关联，避免歧义。",
+      },
+      {
+        ...ZHANG_MING_BULLETS[1],
+        after: "独立主导 Enterprise AI 助手从 0 到 1 的产品规划与落地，全面覆盖智能问答、文档分析与客服自动化三大核心场景，实现 B 端客户从 POC 到规模化上线的完整闭环。",
+        reason: "强调“独立主导”和“从 0 到 1”，并加入“POC 到规模化上线”与 JD 高度契合，突出主导力和落地闭环能力。",
+        riskWarning: "需确认是否真正独立主导，以及与算法、工程团队协作的具体分工，避免被质疑夸大角色。",
+      },
+      {
+        ...ZHANG_MING_BULLETS[2],
+        after: "主导优化 Prompt 架构与 RAG 检索链路，通过系统性设计迭代，将知识库回答准确率提升 25%，响应时延降低 40%，显著提升用户满意度与产品竞争力。",
+        reason: "增加“主导”和“系统性设计迭代”，强调技术主导力，同时将指标与满意度挂钩，突出贡献价值。",
+        riskWarning: "需明确优化方法是否为个人主导，以及提升指标是否经过严格 A/B 测试，避免夸大效果。",
+      },
+      {
+        ...ZHANG_MING_BULLETS[3],
+        after: "从 0 到 1 搭建 AI 效果评测基准体系 (Benchmarking)，主导收集 1000+ 真实用户反馈轮次，基于数据驱动决策推动产品月活跃用户突破 50 万，成为企业级 AI 助手市场标杆。",
+        reason: "加入“从 0 到 1 搭建”、“主导”、“基于数据驱动决策”等表达，突出体系构建的主导力和对业务增长的直接贡献。",
+        riskWarning: "需确认月活增长是否主要由评测体系驱动，以及市场标杆是否有第三方佐证，避免过度包装。",
+      },
+      {
+        ...ZHANG_MING_BULLETS[4],
+        after: "全权负责自动化流程建构器产品设计，主导覆盖 200+ 中大型企事业单位的交付与迭代，通过优化核心使用路径指引使用户首周留存率提升 18%，巩固了产品在 B 端市场的竞争力。",
+        reason: "将“负责”改为“全权负责”并加入“主导交付与迭代”，同时关联后续留存率提升数据，突出对产品全生命周期的主导力。",
+        riskWarning: "需确认留存率提升是否确实来自该建构器设计，且“全权负责”是否反映实际权限，避免与团队分工矛盾。",
+      },
+    ];
+  }
+
+  if (style === "jd-matched") {
+    return [
+      {
+        ...ZHANG_MING_BULLETS[0],
+        after: "3年互联网产品经理经验，深耕 ToB SaaS 领域，专注于 AI 智能体与 LLM 应用落地。精通 Prompt 工程、Agent 工作流及 RAG 检索增强架构，具备从需求分析到规模化上线的全链路产品方案能力，深入理解 B 端客户业务场景，将大模型能力转化为可落地的产品方案。",
+        reason: "JD 强调“深入理解 B 端客户业务场景，将大模型能力转化为可落地的产品方案”，原摘要未突出“客户场景”与“规模化上线”，调整后更贴合岗位要求，并显式标注了 LLM 应用设计的核心能力。",
+        riskWarning: "若面试官追问具体 B 端客户场景案例，需准备详细的行业痛点分析及解决方案，否则可能被质疑场景理解深度。",
+      },
+      {
+        ...ZHANG_MING_BULLETS[1],
+        after: "作为核心 PM，主导 Enterprise AI 助手从0到1的产品规划与落地，覆盖智能问答、文档理解与客服自动化三大核心场景，与算法、工程团队紧密协作，推动功能从 POC 验证到规模化上线。",
+        reason: "JD 要求“与算法、工程团队紧密协作，推动 AI 功能从 POC 验证到规模化上线”，原句未体现团队协作与 POC 阶段，优化后直接呼应岗位职责，并突出“从 0 到 1”的完整产品周期。",
+        riskWarning: "若面试官询问 POC 阶段的具体协作细节及难点，需准备技术方案与跨团队协调案例，否则可能显得经验不够深入。",
+      },
+      {
+        ...ZHANG_MING_BULLETS[2],
+        after: "主导 Prompt 架构优化与 RAG 检索链路重构，通过系统性调优（包括多轮对话上下文压缩、检索策略调整），使知识库回答准确率提升 25%，响应时延降低 40%，并建立持续监控机制，确保效果的稳定性与可复现性。",
+        reason: "JD 强调“建立 AI 产品效果评估体系，通过数据分析与用户反馈持续优化产品体验”，原句只描述了结果，未体现评估体系与持续优化机制，优化后补充了“监控机制”与“可复现性”，更贴合数据驱动迭代的要求。",
+        riskWarning: "若被追问具体如何建立监控机制，需准备指标定义、数据采集流程及复现性验证方法，否则仅是经验而非系统化思维。",
+      },
+      {
+        ...ZHANG_MING_BULLETS[3],
+        after: "搭建 AI 产品效果评测基准体系，涵盖自动化指标与人工评估相结合，累计收集 1000+ 轮次真实用户反馈，基于数据驱动持续优化产品体验，推动月活跃用户从 0 增长至 50 万，验证了 AI 功能在 B 端场景的规模化价值。",
+        reason: "JD 要求“建立 AI 产品效果评测体系，通过数据分析与用户反馈持续优化产品体验”，原句仅提及“建立评测体系”，优化后补充了评测方式（自动化+人工）、数据起点（0 增长）及 B 端场景价值，更贴合 ToB SaaS 背景。",
+        riskWarning: "若面试官细问具体评测指标（如准确率、召回率、用户满意度）及如何平衡自动化与人工评估，需准备详细案例，否则可能显得框架不完整。",
+      },
+    ];
+  }
+
+  if (style === "data-driven") {
+    return [
+      {
+        ...ZHANG_MING_BULLETS[0],
+        after: "3年互联网产品经理，累计主导交付 2 款 AI 产品与 1 款 SaaS 流程引擎，服务 200+ 企事业单位。通过 Prompt 与 RAG 检索调优，将知识库回答准确率由 65% 提升至 90%（+25%）、响应时延由 2.5s 降低至 1.5s（-40%），驱动核心产品 MAU 从 0 突破 50 万。",
+        reason: "按「突出数据量化」方向重写，将技能概括转化为明确的客户数、起止基线与 MAU 突破数据，极富说服力。",
+        riskWarning: "备齐 MAU 50万 的口径统计图表与起止点基线数据，防面试官追问真假活跃。",
+      },
+      {
+        ...ZHANG_MING_BULLETS[1],
+        after: "主导 Enterprise AI 助手从0到1落地，覆盖 3 大核心场景，为 200+ 家中大型企事业单位提供服务，日均处理智能问答与文档检索请求 15 万+ 次，实现 POC 到生产全量上线。",
+        reason: "补充日均请求数（15万+）与客户量级，突出大并发业务规模与量化成效。",
+        riskWarning: "日均 15万+ 请求需确认是否符合生产环境日志口径。",
+      },
+      {
+        ...ZHANG_MING_BULLETS[2],
+        after: "优化 Prompt 架构与 RAG 检索链路，将知识库回答准确率由 65% 提升至 90%（提升 25%），平均响应时延由 2.5 秒降至 1.5 秒（缩短 40%），检索召回率提升 30%。",
+        reason: "补充召回率与起止基线数据，消除相对百分比的模糊感。",
+        riskWarning: "召回率 30% 需准备评估集的具体计算公式与测试样本规模。",
+      },
+      {
+        ...ZHANG_MING_BULLETS[3],
+        after: "搭建包含 12 项评测维度的 AI 效果 Benchmarking 体系，收集 1000+ 轮次真实用户反馈，数据驱动优化后产品 MAU 由 20万 增长至 50万（+150%）。",
+        reason: "补齐评测维度数量与增幅百分比，凸显数据驱动业务增长的效果。",
+        riskWarning: "确定 MAU 从 20万 增长至 50万 的具体归因图表。",
+      },
+    ];
+  }
+
+  if (style === "reduce-exaggeration") {
+    return [
+      {
+        ...ZHANG_MING_BULLETS[0],
+        after: "3年产品经理经验，参与过 AI 智能体与 ToB SaaS 产品研发。掌握 Prompt 调优、工作流设计与 RAG 检索基础原理，具备实际产品规划与项目跟进经验。",
+        reason: "去除“闭环”、“精通”等夸大词汇，用客观严谨的态度呈现经历，防面试追问问倒。",
+        riskWarning: "修改后求真务实，完全消除夸大被质问的风险。",
+      },
+      {
+        ...ZHANG_MING_BULLETS[1],
+        after: "作为产品经理参与 Enterprise AI 助手的需求梳理与功能落地，跟进智能问答、文档分析与客服自动化三大场景的交付。",
+        reason: "准确描述为“参与”与“需求跟进”，实事求是反映团队协作关系。",
+        riskWarning: "真实表达团队分工，面试展现踏实作风。",
+      },
+      {
+        ...ZHANG_MING_BULLETS[2],
+        after: "针对知识库场景跟进 Prompt 调试与 RAG 检索优化，协助技术团队提升回答准确率并降低响应延时。",
+        reason: "客观描述技术协助过程，避免把算法团队的工作全归因于个人。",
+        riskWarning: "保持客观真实，防止技术深扣失误。",
+      },
+    ];
+  }
+
+  // Default: concise (标准精炼 STAR法则)
   return [
     {
-      id: "opt-1",
-      section: "职业摘要",
-      before:
-        "3.5年 B 端产品经理经验，主导 ERP 库存管理、WMS 仓储系统及经营数据报表平台的产品设计与迭代。擅长需求调研、流程梳理与跨部门协作，具备从 0 到 1 搭建数据产品的经验。",
-      after:
-        "3.5年 ToB SaaS 产品经理，深耕 ERP/WMS 及经营数据报表领域，服务 50+ 企业客户。具备从 0 到 1 搭建数据产品与智能化功能（智能补货策略）的完整经验，近期系统学习 LLM 应用与 Prompt 设计，独立完成内部文档问答 Demo，正将数据驱动的产品方法论延伸至 AI 产品场景。",
-      reason: `按「${styleNote}」方向重写，建立 B 端经验与 AI 转型的叙事连接`,
-      riskWarning: "Demo 项目需确保可演示，避免过度包装为「正式产品经验」",
+      ...ZHANG_MING_BULLETS[1],
+      after: "负责企业级 AI 助手从 0 到 1 的产品规划与落地，聚焦智能问答、文档分析与客服自动化三个核心场景。通过深入调研 20+ B端客户业务痛点，明确 MVP 功能边界，并协同算法团队完成多轮 Prompt 调优，在 3 个月内实现 POC 到生产环境的全量上线。",
+      reason: "原表述仅为概括性陈述，缺少 STAR 要素。通过补充情境（B端客户调研）、任务（明确 MVP 边界）、行动（协同算法团队调优）和结果（3个月内 POC 到生产上线），更清晰地展示产品落地全流程。",
+      riskWarning: "需确认客户调研的具体数量及 POC 到上线的时间周期是否与事实完全一致，避免过度具体化。",
     },
     {
-      id: "opt-2",
-      section: "工作经历 - WMS",
-      before: "负责 WMS 仓储管理系统核心模块，服务 50+ 企业客户",
-      after:
-        "负责 WMS 仓储管理系统核心模块（入库/出库/盘点/补货）产品规划与迭代，覆盖 50+ 企业客户的 SaaS 标准化交付",
-      reason: "补充模块范围与 SaaS 交付属性，增强 ToB 画像",
-      riskWarning: "模块列表需与实际负责范围一致",
+      ...ZHANG_MING_BULLETS[2],
+      after: "针对知识库问答场景中回答准确率低、响应慢的问题，重构 Prompt 提示策略与 RAG 检索链路。通过引入多轮对话上下文压缩、语义分块及重排序机制，使知识库回答准确率从 65% 提升至 90%，响应时延从 2.5 秒降低至 1.5 秒，显著改善用户体验。",
+      reason: "原表述已包含结果，但缺少问题背景与具体技术手段。此处补充了初始指标（65%、2.5秒）和具体技术手段（语义分块、重排序），使量化成果更具说服力。",
+      riskWarning: "初始指标（65%、2.5秒）需确认是否来自真实质验或真实数据，若无法提供，建议改为“显著缩短延时”并避免猜测。",
     },
     {
-      id: "opt-3",
-      section: "工作经历 - 盘点",
-      before: "主导库存盘点功能重构，盘点效率提升 40%",
-      after:
-        "主导库存盘点流程重构（移动端扫码 + 差异自动核对），单次盘点耗时从 4h 降至 2.4h，效率提升 40%",
-      reason: "增加方法论与具体数据，提升可信度",
-      riskWarning: "时间数据需可溯源，面试可能被追问",
-    },
-    {
-      id: "opt-4",
-      section: "项目经历 - 智能补货",
-      before: "基于历史销售数据设计补货策略模型，推动补货建议功能上线，缺货率下降 25%",
-      after:
-        "设计基于历史销售与季节性波动的智能补货策略（规则引擎 + 安全库存模型），经 3 个月 A/B 验证后全量上线，缺货率从 12% 降至 9%",
-      reason: "将「智能补货」与 AI/智能化叙事对齐，补充验证过程",
-      riskWarning: "规则引擎不等于 LLM，面试时需诚实说明技术方案",
-    },
-    {
-      id: "opt-5",
-      section: "新增 - AI 实践项目",
-      before: "（简历中未体现）",
-      after:
-        "独立开发内部文档问答 Demo（LangChain + 向量检索 + GPT），支持产品文档语义搜索与问答，准确率达 85%，验证 RAG 方案在知识库场景的可行性",
-      reason: "将补充信息中的 Demo 经验结构化写入，补齐 AI 经历缺口",
-      riskWarning: "明确标注为 Demo/个人项目，避免误导为商业落地",
+      ...ZHANG_MING_BULLETS[3],
+      after: "为了量化 AI 产品效果并驱动持续迭代，主导构建了包含准确率、相关性、用户满意度等维度的评测基准体系。累计收集来自 1000+ 真实用户反馈轮次，并基于数据洞察优化问答重排策略与内容生成策略，最终推动产品月活跃用户从 20 万增长至 50 万。",
+      reason: "原表述仅提及了基准和收集反馈，未说明为什么做、如何做、以及用户增长与评测的因果关系。通过补充初始 MAU（20万）和行动细节（优化策略），突出数据驱动产品增长的能力。",
+      riskWarning: "初始 MAU 20 万为推测数据，需确认实际基线数据；若无法提供，建议改为“月活跃用户突破 50 万”并避免提及具体增长量。",
     },
     {
       id: "opt-6",
-      section: "技能工具",
-      before: "Axure、Figma、SQL、Jira、Confluence、数据分析",
-      after:
-        "产品：Axure、Figma、Jira | 数据：SQL、BI 报表 | AI：Prompt Engineering、LangChain（RAG Demo）、LLM 应用基础",
-      reason: "分类展示并加入 AI 技能，对齐 JD 关键词",
-      riskWarning: "AI 技能标注「基础/Demo 级」，避免夸大",
+      section: "项目经历",
+      before: "针对多格式长文档（PDF/Word/PPT）分析痛点，策划并构建 AI 智能摘要与对话功能；",
+      after: "调研发现企业用户在处理长文档时存在摘要提取耗时长、内容理解不准确等痛点，因此策划并设计了 AI 智能摘要与对话功能。通过设计基于 LangChain 的文档解析管道，支持 PDF/Word/PPT 多格式，实现单页文档 10 秒内生成摘要，并支持多轮追问，用户采纳率达 85%。",
+      reason: "原表述缺少具体行动和量化结果。补充了技术选型（LangChain）、性能指标（10秒）和用户采纳率，使项目成果更可信。",
+      riskWarning: "用户采纳率 85% 为假设数据，需确认是否来自实际测试或用户反馈；若无法提供，建议改为“获得内部测试团队积极反馈”。",
+    },
+    {
+      id: "opt-7",
+      section: "项目经历",
+      before: "设计灵活的微调及评估标准，协助工程团队搭建模型评测流水线。",
+      after: "基于模型在实际场景中的表现差异，设计了包含多维指标（准确率、召回率、生成流畅度）的微调与评估标准，并主导搭建了自动化评测流水线，将模型迭代周期从 2 周缩短至 3 天，同时支持线上 A/B 测试。",
+      reason: "原表述过于笼统，未体现设计计划和实际效果。通过补充具体指标（迭代周期缩短）和自动化能力，展示工程化思维。",
+      riskWarning: "迭代周期缩短数值（2周→3天）需确认与项目实际情况吻合；若不确定，可改为“显著缩短迭代周期”。",
     },
   ];
 }
@@ -481,24 +609,28 @@ function buildInterviewPrep(): AnalysisResult["interviewPrep"] {
 
 export async function runMockResumeAnalysis(
   input: UserInput,
-  optimizeStyle: OptimizeStyle = "ai-product"
+  optimizeStyle: OptimizeStyle = "concise"
 ): Promise<AnalysisResult> {
   await delay(1800);
+
+  const optimizedItems = buildOptimizedItems(optimizeStyle);
+  const baseFinalResume = buildFinalResume(input);
+  const finalResume = updateFinalResumeWithOptimizedItems(baseFinalResume, optimizedItems);
 
   return {
     jdAnalysis: buildJDAnalysis(input),
     diagnosis: buildDiagnosis(),
     matchItems: buildMatchItems(),
     followUpQuestions: buildFollowUpQuestions(),
-    optimizedItems: buildOptimizedItems(optimizeStyle),
-    finalResume: buildFinalResume(input),
+    optimizedItems,
+    finalResume,
     interviewPrep: buildInterviewPrep(),
   };
 }
 
 export async function runMockResumeAnalysisStream(
   input: UserInput,
-  optimizeStyle: OptimizeStyle = "ai-product",
+  optimizeStyle: OptimizeStyle = "concise",
   onStageUpdate?: (update: {
     stage: string;
     status: "start" | "complete";
@@ -524,7 +656,8 @@ export async function runMockResumeAnalysisStream(
   onStageUpdate?.({ stage: "optimize", status: "start" });
   await delay(600);
   const optimizedItems = buildOptimizedItems(optimizeStyle);
-  const finalResume = buildFinalResume(input);
+  const baseFinalResume = buildFinalResume(input);
+  const finalResume = updateFinalResumeWithOptimizedItems(baseFinalResume, optimizedItems);
   onStageUpdate?.({
     stage: "optimize",
     status: "complete",
@@ -553,10 +686,14 @@ export async function runMockResumeAnalysisStream(
 
 
 export async function runMockRegenerateOptimizedItems(
+  input: UserInput,
   style: OptimizeStyle
-): Promise<AnalysisResult["optimizedItems"]> {
+): Promise<{ optimizedItems: AnalysisResult["optimizedItems"]; finalResume: AnalysisResult["finalResume"] }> {
   await delay(800);
-  return buildOptimizedItems(style);
+  const optimizedItems = buildOptimizedItems(style);
+  const baseFinalResume = buildFinalResume(input);
+  const finalResume = updateFinalResumeWithOptimizedItems(baseFinalResume, optimizedItems);
+  return { optimizedItems, finalResume };
 }
 
 export async function runMockFollowUpBullet(
@@ -599,43 +736,217 @@ export async function runMockReoptimizeWithBullets(
 }
 
 export async function runMockExtractTemplate(rawContent: string): Promise<string> {
-  await delay(1500);
+  await delay(1000);
+  const lower = rawContent.toLowerCase();
+
+  // 1. Single Column Minimal
+  if (lower.includes("单栏") || lower.includes("极简") || lower.includes("经典") || lower.includes("minimal")) {
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{姓名}} - 经典单栏自定义模板</title>
+  <style>
+    @page { size: A4; margin: 4mm; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 13.5px; line-height: 1.55; color: #1e293b; margin: 0; padding: 12px 24px; background: #ffffff; }
+    .layout-single-column { max-width: 800px; margin: 0 auto; }
+    .header-center { text-align: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 12px; margin-bottom: 16px; }
+    .header-name { font-size: 24px; font-weight: 800; color: #1e3a8a; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .header-intent { font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+    .header-contact { font-size: 12px; color: #64748b; display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+    .sec-title { font-size: 14.5px; font-weight: 700; color: #1e3a8a; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 4px; margin-top: 18px; margin-bottom: 10px; text-transform: uppercase; }
+    ul { margin: 6px 0 10px 0; padding-left: 18px; }
+    li { margin-bottom: 4px; color: #334155; }
+  </style>
+</head>
+<body>
+  <div class="layout-single-column">
+    <div class="header-center">
+      <div class="header-name">{{姓名}}</div>
+      <div class="header-intent">🎯 意向：{{求职意向}}</div>
+      <div class="header-contact">
+        <span>🏫 {{学校}}</span>
+        <span>📞 {{电话}}</span>
+        <span>✉️ {{邮箱}}</span>
+        <span>📍 {{城市}}</span>
+      </div>
+    </div>
+    <div class="sec-title">教育背景</div>
+    <div>{{教育背景}}</div>
+    <div class="sec-title">工作与校园经历</div>
+    <div>{{工作经历}}</div>
+    <div class="sec-title">项目经历</div>
+    <div>{{项目经历}}</div>
+    <div class="sec-title">核心能力与所获荣誉</div>
+    <div>{{核心能力}}</div>
+    <p style="margin-top: 8px; font-size: 12.5px; color: #475569;">{{技能工具}}</p>
+  </div>
+</body>
+</html>`;
+  }
+
+  // 2. Corporate Banner Header
+  if (lower.includes("商务") || lower.includes("banner") || lower.includes("header") || lower.includes("深色")) {
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{姓名}} - 商务 Banner 自定义模板</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 13.5px; line-height: 1.55; color: #1e293b; margin: 0; padding: 0; background: #f8fafc; }
+    .layout-corporate-banner { width: 100%; min-height: 100vh; }
+    .top-banner { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); color: #ffffff; padding: 30px 40px; display: flex; align-items: center; justify-content: space-between; border-bottom: 4px solid #6366f1; }
+    .banner-left { flex: 1; }
+    .banner-name { font-size: 26px; font-weight: 800; letter-spacing: 1px; margin-bottom: 6px; }
+    .banner-intent { font-size: 14px; color: #c7d2fe; font-weight: 500; }
+    .banner-info { margin-top: 10px; font-size: 12px; color: #e0e7ff; display: flex; gap: 16px; flex-wrap: wrap; }
+    .body-content { padding: 24px 40px; background: #ffffff; margin: 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .sec-title { font-size: 15px; font-weight: 700; color: #1e1b4b; border-left: 4px solid #6366f1; padding-left: 8px; margin-top: 20px; margin-bottom: 10px; }
+    ul { margin: 6px 0 10px 0; padding-left: 18px; }
+    li { margin-bottom: 4px; color: #334155; }
+  </style>
+</head>
+<body>
+  <div class="layout-corporate-banner">
+    <div class="top-banner">
+      <div class="banner-left">
+        <div class="banner-name">{{姓名}}</div>
+        <div class="banner-intent">🎯 意向：{{求职意向}}</div>
+        <div class="banner-info">
+          <span>🏫 {{学校}}</span>
+          <span>📞 {{电话}}</span>
+          <span>✉️ {{邮箱}}</span>
+          <span>📍 {{城市}}</span>
+        </div>
+      </div>
+      <div>{{头像}}</div>
+    </div>
+    <div class="body-content">
+      <div class="sec-title">教育背景</div>
+      <div>{{教育背景}}</div>
+      <div class="sec-title">工作与校园经历</div>
+      <div>{{工作经历}}</div>
+      <div class="sec-title">项目经历</div>
+      <div>{{项目经历}}</div>
+      <div class="sec-title">核心能力与技能</div>
+      <div>{{核心能力}}</div>
+      <p style="margin-top: 8px; font-size: 12.5px; color: #475569;">{{技能工具}}</p>
+    </div>
+  </div>
+</body>
+</html>`;
+  }
+
+  // 3. Timeline Tech
+  if (lower.includes("时间轴") || lower.includes("timeline") || lower.includes("极客") || lower.includes("tech")) {
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{姓名}} - 时间轴极客自定义模板</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 13.5px; line-height: 1.55; color: #1e293b; margin: 0; padding: 24px 36px; background: #ffffff; }
+    .layout-timeline-tech { max-width: 820px; margin: 0 auto; }
+    .tech-header { border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+    .tech-name { font-size: 26px; font-weight: 800; color: #2563eb; }
+    .tech-intent { font-size: 13px; font-weight: 600; color: #475569; }
+    .tech-contact { font-size: 12px; color: #64748b; margin-top: 6px; display: flex; gap: 14px; flex-wrap: wrap; }
+    .sec-title { font-size: 15px; font-weight: 700; color: #1e293b; margin-top: 22px; margin-bottom: 12px; display: flex; items-center: center; gap: 8px; }
+    .sec-title::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #2563eb; }
+    .timeline-container { border-left: 2px solid #dbeafe; padding-left: 18px; margin-left: 4px; }
+    ul { margin: 6px 0 10px 0; padding-left: 18px; }
+    li { margin-bottom: 4px; color: #334155; }
+  </style>
+</head>
+<body>
+  <div class="layout-timeline-tech">
+    <div class="tech-header">
+      <div>
+        <div class="tech-name">{{姓名}}</div>
+        <div class="tech-intent">🎯 求职意向：{{求职意向}}</div>
+        <div class="tech-contact">
+          <span>🏫 {{学校}}</span>
+          <span>📞 {{电话}}</span>
+          <span>✉️ {{邮箱}}</span>
+          <span>📍 {{城市}}</span>
+        </div>
+      </div>
+      <div>{{头像}}</div>
+    </div>
+    <div class="sec-title">教育背景</div>
+    <div>{{教育背景}}</div>
+    <div class="sec-title">工作与校园经历</div>
+    <div class="timeline-container">{{工作经历}}</div>
+    <div class="sec-title">项目经历</div>
+    <div class="timeline-container">{{项目经历}}</div>
+    <div class="sec-title">核心能力与技术栈</div>
+    <div>{{核心能力}}</div>
+    <p style="margin-top: 8px; font-size: 12.5px; color: #475569;">{{技能工具}}</p>
+  </div>
+</body>
+</html>`;
+  }
+
+  // 4. Default: Modern Left Sidebar Double Column
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>{{姓名}} - 识别提取简历模板</title>
+  <title>{{姓名}} - 1.3 简历双栏自定义模板</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 13.5px; line-height: 1.6; color: #1e293b; margin: 0; padding: 24px 32px; background: #fff; }
-    .header { border-bottom: 3px solid #6366f1; padding-bottom: 12px; margin-bottom: 20px; }
-    .name { font-size: 26px; font-weight: 700; color: #312e81; }
-    .contact { font-size: 12.5px; color: #4338ca; margin-top: 4px; }
-    .section-title { font-size: 14px; font-weight: 700; color: #312e81; border-left: 4px solid #6366f1; padding-left: 8px; margin-top: 20px; margin-bottom: 10px; text-transform: uppercase; }
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; margin: 0; padding: 0; background: #ffffff; color: #1e293b; font-size: 13px; line-height: 1.6; }
+    .layout-modern-sidebar { display: flex; min-height: 100vh; width: 100%; }
+    .sidebar { width: 32%; background-color: #f1f5f9; padding: 32px 20px; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 20px; }
+    .avatar-wrapper { display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .name-title { font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: 1px; margin: 10px 0 4px 0; }
+    .sidebar-sec-title { font-size: 13.5px; font-weight: 700; color: #0f172a; border-bottom: 2px solid #334155; padding-bottom: 4px; margin-bottom: 10px; }
+    .info-item { font-size: 12px; color: #475569; margin-bottom: 8px; line-height: 1.5; }
+    .main-content { flex: 1; padding: 32px 32px; background: #ffffff; }
+    .main-sec-title { font-size: 14.5px; font-weight: 800; color: #0f172a; border-bottom: 2px dashed #94a3b8; padding-bottom: 6px; margin-top: 20px; margin-bottom: 12px; }
+    .main-sec-title:first-child { margin-top: 0; }
+    ul { margin: 6px 0 12px 0; padding-left: 18px; }
+    li { margin-bottom: 4px; color: #334155; }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div class="name">{{姓名}}</div>
-    <div class="contact">{{邮箱}} · {{电话}} · {{城市}} · 求职意向：{{求职意向}}</div>
+  <div class="layout-modern-sidebar">
+    <div class="sidebar">
+      <div class="avatar-wrapper">
+        {{头像}}
+        <div class="name-title">{{姓名}}</div>
+      </div>
+      <div>
+        <div class="sidebar-sec-title">基本信息</div>
+        <div class="info-item">🏫 院校：{{学校}}</div>
+        <div class="info-item">📞 手机：{{电话}}</div>
+        <div class="info-item">✉️ 邮箱：{{邮箱}}</div>
+        <div class="info-item">📍 城市：{{城市}}</div>
+        <div class="info-item">🎯 意向：{{求职意向}}</div>
+      </div>
+      <div>
+        <div class="sidebar-sec-title">自我评价</div>
+        <div style="font-size: 12px; color: #475569; line-height: 1.65;">{{职业摘要}}</div>
+      </div>
+    </div>
+    <div class="main-content">
+      <div class="main-sec-title">教育背景</div>
+      <div>{{教育背景}}</div>
+      <div class="main-sec-title">工作与校园经历</div>
+      <div>{{工作经历}}</div>
+      <div class="main-sec-title">项目经历</div>
+      <div>{{项目经历}}</div>
+      <div class="main-sec-title">核心能力与所获荣誉</div>
+      <div>{{核心能力}}</div>
+      <p style="margin-top: 10px; font-size: 12.5px; color: #475569;">{{技能工具}}</p>
+    </div>
   </div>
-
-  <div class="section-title">职业摘要</div>
-  <p>{{职业摘要}}</p>
-
-  <div class="section-title">核心能力</div>
-  <div>{{核心能力}}</div>
-
-  <div class="section-title">工作经历</div>
-  <div>{{工作经历}}</div>
-
-  <div class="section-title">项目经历</div>
-  <div>{{项目经历}}</div>
-
-  <div class="section-title">技能工具</div>
-  <p>{{技能工具}}</p>
-
-  <div class="section-title">教育背景</div>
-  <p>{{教育背景}}</p>
 </body>
 </html>`;
 }

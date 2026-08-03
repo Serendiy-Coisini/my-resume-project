@@ -12,8 +12,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "缺少必要参数" }, { status: 400 });
     }
 
-    const { optimizedItems, mode } = await regenerateOptimizedItemsServer(input, style);
-    return NextResponse.json({ optimizedItems, mode });
+    const { optimizedItems, finalResume, mode } = await regenerateOptimizedItemsServer(input, style);
+    return NextResponse.json({ optimizedItems, finalResume, mode });
   } catch (error) {
     const message = error instanceof LLMError ? error.message : "优化生成失败，请稍后重试";
     return NextResponse.json({ error: message }, { status: 500 });

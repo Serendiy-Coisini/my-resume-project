@@ -1,8 +1,9 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useLegoDesignerStore } from '@/store/lego-designer-store';
 import { useResumeStore } from '@/store/resume-store';
 import { buildLegoSchemaFromResume } from '@/lib/lego-adapter';
 import { printLegoCanvas } from './utils/printLego';
+import type { TemplateId } from '@/types/resume';
 import {
   ZoomIn,
   ZoomOut,
@@ -13,7 +14,9 @@ import {
   FileText,
   Maximize2,
   Minimize2,
-  Upload
+  Upload,
+  Download,
+  ChevronDown
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -24,12 +27,42 @@ interface ToolbarProps {
 export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScreen }) => {
   const { scale, setScale, undo, redo, undoStack, redoStack, setSchema } =
     useLegoDesignerStore();
-  const { userInput, analysisResult } = useResumeStore();
+  const { userInput, analysisResult, selectedTemplate, templateOptions, customTemplateHTML } = useResumeStore();
   const jsonFileInputRef = useRef<HTMLInputElement | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const [showTplMenu, setShowTplMenu] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowTplMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleReloadAiData = () => {
     if (confirm('确定要用最新 AI 润色数据覆盖当前积木画布吗？未保存的手动拖拽调整将被重置。')) {
-      const freshSchema = buildLegoSchemaFromResume(userInput, analysisResult);
+      const freshSchema = buildLegoSchemaFromResume(userInput, analysisResult, selectedTemplate, templateOptions, customTemplateHTML);
+      setSchema(freshSchema, true);
+    }
+  };
+
+  const handleImportTemplate = (tplId: TemplateId) => {
+    setShowTplMenu(false);
+    const tplNames: Record<string, string> = {
+      'modern-sidebar': '1.3 现代双栏',
+      'corporate-banner': '商务 Header 沉稳范',
+      'timeline-tech': '时间轴极客型',
+      'grid-cards': '微阴影卡片流',
+      'classic-minimal': '经典极简单栏',
+      'custom': '✨ AI 动态识别自定义模板'
+    };
+
+    const name = tplNames[tplId] || tplId;
+    if (confirm(`确定要将【${name}】排版转换并导入到积木画布吗？当前画布中的手改样式将被此模板重置。`)) {
+      const freshSchema = buildLegoSchemaFromResume(userInput, analysisResult, tplId, templateOptions, customTemplateHTML);
       setSchema(freshSchema, true);
     }
   };
@@ -150,14 +183,85 @@ export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScre
           className="hidden"
           onChange={handleImportJSON}
         />
+        
+        {/* Template Import Dropdown */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setShowTplMenu(!showTplMenu)}
+            className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-blue-500/20 border border-blue-400/30 transition-all cursor-pointer"
+            title="选择将任意已生成/选择的固定模板转换并导入到积木设计器自由微调"
+          >
+            <Download className="w-3.5 h-3.5 text-white" />
+            导入固定模板排版
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showTplMenu ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showTplMenu && (
+            <div className="absolute right-0 top-full mt-1.5 w-64 bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 mb-1">
+                选择要导入微调的固定模板
+              </div>
+              
+              <button
+                onClick={() => handleImportTemplate('modern-sidebar')}
+                className="w-full px-3 py-2 text-left hover:bg-slate-800 text-xs text-slate-200 flex items-center justify-between transition-colors cursor-pointer"
+              >
+                <span>🖼️ 现代双栏 (1.3 侧边栏型)</span>
+                <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded">双栏推荐</span>
+              </button>
+
+              <button
+                onClick={() => handleImportTemplate('corporate-banner')}
+                className="w-full px-3 py-2 text-left hover:bg-slate-800 text-xs text-slate-200 flex items-center justify-between transition-colors cursor-pointer"
+              >
+                <span>🏢 商务 Header 沉稳范</span>
+                <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded">深色 Banner</span>
+              </button>
+
+              <button
+                onClick={() => handleImportTemplate('timeline-tech')}
+                className="w-full px-3 py-2 text-left hover:bg-slate-800 text-xs text-slate-200 flex items-center justify-between transition-colors cursor-pointer"
+              >
+                <span>⏱️ 时间轴极客型</span>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded">时间轴</span>
+              </button>
+
+              <button
+                onClick={() => handleImportTemplate('grid-cards')}
+                className="w-full px-3 py-2 text-left hover:bg-slate-800 text-xs text-slate-200 flex items-center justify-between transition-colors cursor-pointer"
+              >
+                <span>🎴 微阴影卡片流</span>
+                <span className="text-[10px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded">卡片切块</span>
+              </button>
+
+              <button
+                onClick={() => handleImportTemplate('classic-minimal')}
+                className="w-full px-3 py-2 text-left hover:bg-slate-800 text-xs text-slate-200 flex items-center justify-between transition-colors cursor-pointer"
+              >
+                <span>📝 经典极简单栏</span>
+                <span className="text-[10px] bg-slate-500/20 text-slate-300 px-1.5 py-0.5 rounded">清爽大厂</span>
+              </button>
+
+              <button
+                onClick={() => handleImportTemplate('custom')}
+                className="w-full px-3 py-2 text-left hover:bg-slate-800 text-xs text-slate-200 flex items-center justify-between transition-colors cursor-pointer"
+              >
+                <span>✨ AI 动态识别自定义模板</span>
+                <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded">自定义</span>
+              </button>
+            </div>
+          )}
+        </div>
+
         <button
           className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-1 border border-slate-700 transition-all"
           onClick={() => jsonFileInputRef.current?.click()}
           title="导入积木 JSON 配置"
         >
           <Upload className="w-3.5 h-3.5 text-blue-400" />
-          导入 JSON
+          JSON
         </button>
+
         <button
           className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-1.5 border border-slate-700 transition-all"
           onClick={onToggleFullScreen}

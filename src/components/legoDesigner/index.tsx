@@ -9,7 +9,7 @@ import { buildLegoSchemaFromResume } from '@/lib/lego-adapter';
 
 export const LegoDesigner: React.FC = () => {
   const { setSchema, setScale } = useLegoDesignerStore();
-  const { userInput, analysisResult } = useResumeStore();
+  const { userInput, analysisResult, selectedTemplate, templateOptions, customTemplateHTML } = useResumeStore();
 
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [leftWidth, setLeftWidth] = useState(260);
@@ -23,8 +23,8 @@ export const LegoDesigner: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Auto populate Lego Canvas with AI-optimized resume data on load
-    const initialSchema = buildLegoSchemaFromResume(userInput, analysisResult);
+    // Auto populate Lego Canvas with AI-optimized resume data on load using selectedTemplate & templateOptions
+    const initialSchema = buildLegoSchemaFromResume(userInput, analysisResult, selectedTemplate, templateOptions, customTemplateHTML);
     setSchema(initialSchema, false);
 
     // Compute optimal fit scale on mount
@@ -41,7 +41,7 @@ export const LegoDesigner: React.FC = () => {
     updateAutoFitScale();
     const timer = setTimeout(updateAutoFitScale, 100);
     return () => clearTimeout(timer);
-  }, [userInput, analysisResult, setSchema, setScale]);
+  }, [userInput, analysisResult, selectedTemplate, templateOptions, customTemplateHTML, setSchema, setScale]);
 
   // Handle Dragging Divider for Left Sidebar
   const handleLeftMouseDown = (e: React.MouseEvent) => {

@@ -31,6 +31,9 @@ export interface UserInput {
   originalResume: string;
   additionalInfo: string;
   avatarUrl?: string;
+  rawFileName?: string;
+  rawFileType?: string;
+  rawFileDataUrl?: string;
 }
 
 export interface CoreCompetency {
@@ -79,7 +82,10 @@ export interface FollowUpQuestion {
 
 export type OptimizeStyle =
   | "concise"
+  | "data-driven"
+  | "leadership"
   | "reduce-exaggeration"
+  | "jd-matched"
   | "ai-product"
   | "tob-saas";
 

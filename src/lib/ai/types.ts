@@ -1,8 +1,11 @@
 export const STYLE_LABELS = {
-  concise: "更简洁",
-  "reduce-exaggeration": "降低夸张",
-  "ai-product": "更偏 AI 产品",
-  "tob-saas": "更偏 ToB SaaS",
+  concise: "标准精炼 (STAR法则)",
+  "data-driven": "突出数据量化",
+  leadership: "强化主导力与贡献",
+  "reduce-exaggeration": "务实保真 (降低夸张)",
+  "jd-matched": "深度贴合目标 JD",
+  "ai-product": "标准精炼 (STAR法则)",
+  "tob-saas": "深度贴合目标 JD",
 } as const;
 
 export type AIMode = "mock" | "llm";
@@ -42,6 +45,7 @@ export interface AnalyzeResponseBody {
 
 export interface OptimizeResponseBody {
   optimizedItems: import("@/types/resume").OptimizedItem[];
+  finalResume?: import("@/types/resume").AnalysisResult["finalResume"];
   mode: AIMode;
 }
 

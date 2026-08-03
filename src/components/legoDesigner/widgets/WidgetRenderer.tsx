@@ -2,6 +2,23 @@ import React from 'react';
 import type { IWidget } from '@/types/lego';
 import { User } from 'lucide-react';
 
+export function renderFormattedText(text: string) {
+  if (!text) return null;
+
+  // Clean repeated or empty asterisks
+  const cleaned = text.replace(/\*{4,}/g, '').replace(/\*\*\*\*/g, '');
+
+  // Convert markdown and pseudo tags to clean HTML
+  const html = cleaned
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/\[color=(.*?)\](.*?)\[\/color\]/g, '<span style="color:$1;font-weight:bold;">$2</span>')
+    .replace(/\[size=(.*?)\](.*?)\[\/size\]/g, '<span style="font-size:$1px;">$2</span>')
+    .replace(/\[bg=(.*?)\](.*?)\[\/bg\]/g, '<mark style="background-color:$1;padding:0 4px;border-radius:3px;">$2</mark>');
+
+  return <span dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
 interface WidgetRendererProps {
   widget: IWidget;
 }
@@ -65,14 +82,93 @@ export const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget }) => {
         </div>
       );
 
+    case 'hj-[#exper-1]': {
+      const company = (dataSource.companyName || '') as string;
+      const role = (dataSource.jobTitle || '') as string;
+      const time = (dataSource.workTime || '') as string;
+      const content = (dataSource.workContent || dataSource.text || '') as string;
+      const align = (css.textAlign as React.CSSProperties['textAlign']) || 'left';
+      return (
+        <div
+          style={{
+            ...style,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px',
+            padding: '6px 8px',
+            backgroundColor: css.backgroundColor || 'transparent',
+            alignItems: 'stretch',
+            justifyContent: 'flex-start'
+          }}
+        >
+          {(company || role || time) && (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                width: '100%',
+                fontWeight: css.fontWeight || 'bold',
+                fontFamily: css.fontFamily,
+                fontSize: '13.5px',
+                color: css.fontColor || '#0f172a'
+              }}
+            >
+              <span>{renderFormattedText(company)} {role ? `· ${role}` : ''}</span>
+              {time && (
+                <span style={{ color: '#475569', fontWeight: 'bold', fontSize: '12.5px', textAlign: 'right' }}>
+                  {time}
+                </span>
+              )}
+            </div>
+          )}
+          <div
+            style={{
+              fontSize: css.fontSize ? `${css.fontSize}px` : '12.5px',
+              fontWeight: css.fontWeight,
+              fontFamily: css.fontFamily,
+              color: css.fontColor || '#334155',
+              lineHeight: 1.6,
+              whiteSpace: 'pre-wrap',
+              textAlign: align,
+              width: '100%'
+            }}
+          >
+            {content ? renderFormattedText(content) : '双击/在右侧编辑经历内容'}
+          </div>
+        </div>
+      );
+    }
+
     case 'hj-circle':
       return <div style={{ ...style, borderRadius: '50%', backgroundColor: css.backgroundColor || '#2563eb' }} />;
 
     case 'hj-rectangle':
-      return <div style={{ ...style, backgroundColor: css.backgroundColor || '#f1f5f9' }}>{dataSource.text && <div>{dataSource.text}</div>}</div>;
+      return (
+        <div
+          style={{
+            ...style,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: css.textAlign === 'center' ? 'center' : css.textAlign === 'right' ? 'flex-end' : 'flex-start',
+            padding: '2px 8px'
+          }}
+        >
+          {dataSource.text && <div>{renderFormattedText(dataSource.text)}</div>}
+        </div>
+      );
 
     case 'hj-text-1':
     default:
-      return <div style={style}>{dataSource.text || '双击/在右侧编辑文本'}</div>;
+      return (
+        <div
+          style={{
+            ...style,
+            textAlign: (css.textAlign as React.CSSProperties['textAlign']) || 'left'
+          }}
+        >
+          {dataSource.text ? renderFormattedText(dataSource.text) : '双击/在右侧编辑文本'}
+        </div>
+      );
   }
 };

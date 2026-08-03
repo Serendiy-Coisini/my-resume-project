@@ -1,10 +1,11 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useLegoDesignerStore } from '@/store/lego-designer-store';
 import { useResumeStore } from '@/store/resume-store';
 import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  Bold,
   Type,
   Move,
   Palette,
@@ -30,9 +31,64 @@ export const RightSetter: React.FC<RightSetterProps> = ({
 }) => {
   const { getSelectedWidget, updateWidgetCss, updateWidgetDataSource, selectedWidgetId } =
     useLegoDesignerStore();
-  const { userInput, setUserInput } = useResumeStore();
+  const { setUserInput } = useResumeStore();
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const savedSelectionRangeRef = useRef<Range | null>(null);
+  const [selectedCustomColor, setSelectedCustomColor] = useState('#2563eb');
+
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.anchorNode)) {
+      savedSelectionRangeRef.current = sel.getRangeAt(0).cloneRange();
+    }
+  };
+
+  const restoreSelection = () => {
+    if (savedSelectionRangeRef.current && window.getSelection) {
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(savedSelectionRangeRef.current);
+      }
+    }
+  };
+
+  const convertLegacyTagsToHTML = (text: string): string => {
+    if (!text) return '';
+    return text
+      .replace(/\*{4,}/g, '')
+      .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+      .replace(/\[color=(.*?)\](.*?)\[\/color\]/g, '<span style="color:$1;">$2</span>')
+      .replace(/\[bg=(.*?)\](.*?)\[\/bg\]/g, '<mark style="background-color:$1;padding:0 2px;">$2</mark>')
+      .replace(/\[size=(.*?)\](.*?)\[\/size\]/g, '<span style="font-size:$1px;">$2</span>');
+  };
+
+  const execRichCommand = (command: string, value: string = '') => {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+    restoreSelection();
+    document.execCommand(command, false, value);
+    const updatedHtml = editorRef.current.innerHTML;
+    if (selectedWidgetId) {
+      updateWidgetDataSource(selectedWidgetId, {
+        text: updatedHtml,
+        workContent: updatedHtml
+      });
+    }
+  };
+
+  const applyForeColor = (colorHex: string) => {
+    execRichCommand('foreColor', colorHex);
+  };
+
+  const stripAllInlineFormats = () => {
+    if (!selectedWidgetId || !editorRef.current) return;
+    const plainText = editorRef.current.innerText || editorRef.current.textContent || '';
+    editorRef.current.innerText = plainText;
+    updateWidgetDataSource(selectedWidgetId, { text: plainText, workContent: plainText });
+  };
   const selectedWidget = getSelectedWidget();
 
   const handleAvatarFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -199,18 +255,115 @@ export const RightSetter: React.FC<RightSetterProps> = ({
         )}
 
         {/* 1. DataSource Content Setter */}
-        {dataSource.text !== undefined && (
+        {(dataSource.text !== undefined || dataSource.workContent !== undefined || dataSource.companyName !== undefined) && (
           <div className="space-y-1.5">
-            <label className="font-semibold text-slate-700 flex items-center gap-1">
-              <Type className="w-3.5 h-3.5 text-blue-600" /> 文本内容
+            <label className="font-semibold text-slate-700 flex items-center justify-between">
+              <span className="flex items-center gap-1 text-xs">
+                <Type className="w-3.5 h-3.5 text-blue-600" /> 文本与经历内容
+              </span>
+              <span className="text-[10px] text-slate-400">划选文本点击以下快捷标记</span>
             </label>
-            <textarea
-              rows={3}
-              className="w-full p-2 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none text-slate-800 text-xs"
-              value={dataSource.text as string}
-              onChange={(e) =>
-                updateWidgetDataSource(selectedWidget.id, { text: e.target.value })
-              }
+
+            {/* Quick WYSIWYG Formatting Toolbar */}
+            <div className="space-y-1.5 bg-slate-50 p-2 border border-slate-200 rounded-md">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-slate-600">所见即所得局部排版：</span>
+                <button
+                  type="button"
+                  onClick={stripAllInlineFormats}
+                  className="text-[10px] text-slate-500 hover:text-red-600 underline cursor-pointer"
+                  title="一键清除所选文本的加粗与变色格式"
+                >
+                  🧹 清除格式
+                </button>
+              </div>
+
+              <div className="flex items-center flex-wrap gap-1">
+                <button
+                  type="button"
+                  className="px-2 py-0.5 bg-white hover:bg-blue-50 text-blue-700 border border-slate-200 rounded text-[10px] font-bold shadow-2xs transition-colors cursor-pointer flex items-center gap-0.5"
+                  onClick={() => execRichCommand('bold')}
+                  title="划选文本后点击：局部文字加粗"
+                >
+                  <Bold className="w-3 h-3 text-blue-600" /> 局部加粗
+                </button>
+
+                {/* Custom Color Picker for Selected Text with Confirm Button */}
+                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded px-1.5 py-0.5 shadow-2xs">
+                  <span className="text-[10px] text-slate-600 font-medium flex items-center gap-0.5">🎨 调色:</span>
+                  <input
+                    type="color"
+                    value={selectedCustomColor}
+                    className="w-4 h-4 rounded cursor-pointer border-0 p-0"
+                    onChange={(e) => {
+                      setSelectedCustomColor(e.target.value);
+                      applyForeColor(e.target.value);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="px-1.5 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-[10px] font-bold cursor-pointer transition-colors shadow-2xs"
+                    onClick={() => applyForeColor(selectedCustomColor)}
+                    title="确定将调色盘颜色应用到划选文字"
+                  >
+                    ✓ 确定应用颜色
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  className="px-1.5 py-0.5 bg-yellow-100 hover:bg-yellow-200 text-amber-900 border border-yellow-300 rounded text-[10px] font-medium shadow-2xs transition-colors cursor-pointer"
+                  onClick={() => execRichCommand('hiliteColor', '#fef08a')}
+                  title="划选文本后点击：添加浅黄底色高亮"
+                >
+                  💡 黄底高亮
+                </button>
+              </div>
+
+              {/* 7 Preset Color Swatches */}
+              <div className="flex items-center gap-1.5 pt-1 border-t border-slate-200/60">
+                <span className="text-[10px] text-slate-400">快速变色:</span>
+                {[
+                  { name: '宝蓝', hex: '#2563eb', bg: 'bg-blue-600' },
+                  { name: '翡翠', hex: '#059669', bg: 'bg-emerald-600' },
+                  { name: '珊瑚', hex: '#dc2626', bg: 'bg-red-600' },
+                  { name: '琥珀', hex: '#d97706', bg: 'bg-amber-600' },
+                  { name: '优雅紫', hex: '#7c3aed', bg: 'bg-purple-600' },
+                  { name: '玫瑰粉', hex: '#e11d48', bg: 'bg-rose-600' },
+                  { name: '深灰黑', hex: '#0f172a', bg: 'bg-slate-900' }
+                ].map((sw) => (
+                  <button
+                    key={sw.hex}
+                    type="button"
+                    onClick={() => applyForeColor(sw.hex)}
+                    className={`w-4 h-4 rounded-full ${sw.bg} hover:scale-125 transition-transform cursor-pointer border border-white shadow-2xs`}
+                    title={`划选文本变${sw.name}`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* WYSIWYG ContentEditable Box */}
+            <div
+              ref={editorRef}
+              contentEditable
+              suppressContentEditableWarning
+              onMouseUp={saveSelection}
+              onKeyUp={saveSelection}
+              onSelect={saveSelection}
+              className="w-full min-h-[100px] max-h-[220px] overflow-y-auto p-2.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none text-slate-800 text-xs font-sans leading-relaxed bg-white shadow-inner"
+              dangerouslySetInnerHTML={{
+                __html: convertLegacyTagsToHTML(
+                  ((selectedWidget?.dataSource.workContent || selectedWidget?.dataSource.text || '') as string)
+                )
+              }}
+              onInput={(e) => {
+                const html = e.currentTarget.innerHTML;
+                updateWidgetDataSource(selectedWidget.id, {
+                  text: html,
+                  workContent: html
+                });
+              }}
             />
           </div>
         )}
@@ -269,8 +422,52 @@ export const RightSetter: React.FC<RightSetterProps> = ({
         </div>
 
         {/* 3. Typography Styles */}
-        <div className="space-y-2 pt-2 border-t border-slate-100">
-          <label className="font-semibold text-slate-700">字体样式</label>
+        <div className="space-y-2.5 pt-2 border-t border-slate-100">
+          <label className="font-semibold text-slate-700 flex items-center justify-between">
+            <span>字体样式与排版</span>
+          </label>
+
+          {/* Font Family Selection */}
+          <div>
+            <span className="text-[10px] text-slate-400">选择字体 (Font Family)</span>
+            <select
+              className="w-full p-1.5 border border-slate-200 rounded text-slate-800 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer font-medium"
+              value={css.fontFamily || '-apple-system, BlinkMacSystemFont, sans-serif'}
+              onChange={(e) => updateWidgetCss(selectedWidget.id, { fontFamily: e.target.value })}
+            >
+              <option value='system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif'>
+                默认无衬线 (现代系统黑体)
+              </option>
+              <option value='"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif'>
+                思源黑体 (Noto Sans SC - 大厂清晰黑体)
+              </option>
+              <option value='"Noto Serif SC", "SimSun", "Songti SC", serif'>
+                思源宋体 (Noto Serif SC - 高端雅致宋体)
+              </option>
+              <option value='"Long Cang", cursive'>
+                行草风 (Long Cang - 灵动行草)
+              </option>
+              <option value='"Zhi Mang Xing", cursive'>
+                狂放书法 (Zhi Mang Xing - 霸气书法体)
+              </option>
+              <option value='"Fira Code", monospace'>
+                等宽代码体 (Fira Code - 极客程序员)
+              </option>
+              <option value='"JetBrains Mono", monospace'>
+                JetBrains Mono (开发者专属代码体)
+              </option>
+              <option value='Inter, sans-serif'>
+                Inter (现代商务美学)
+              </option>
+              <option value='"SimSun", "STSong", serif'>
+                标准宋体 (公文典雅风)
+              </option>
+              <option value='"KaiTi", "STKaiti", cursive'>
+                手书楷体 (书香风)
+              </option>
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             <div>
               <span className="text-[10px] text-slate-400">字号 (px)</span>
@@ -302,11 +499,49 @@ export const RightSetter: React.FC<RightSetterProps> = ({
             </div>
           </div>
 
+          {/* Font Weight & Boldness */}
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-[11px] text-slate-600">字重与加粗</span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                className={`px-2 py-1 text-[11px] rounded border transition-colors flex items-center gap-1 cursor-pointer ${
+                  css.fontWeight === 'bold' || css.fontWeight === 700 || css.fontWeight === '700'
+                    ? 'bg-blue-600 text-white border-blue-600 font-bold shadow-xs'
+                    : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                }`}
+                onClick={() =>
+                  updateWidgetCss(selectedWidget.id, {
+                    fontWeight:
+                      css.fontWeight === 'bold' || css.fontWeight === 700 || css.fontWeight === '700'
+                        ? 'normal'
+                        : 'bold'
+                  })
+                }
+                title="切换文字加粗 / 常规"
+              >
+                <Bold className="w-3.5 h-3.5" />
+                加粗
+              </button>
+
+              <select
+                className="p-1 border border-slate-200 rounded text-slate-800 text-[11px] bg-white cursor-pointer"
+                value={css.fontWeight || 'normal'}
+                onChange={(e) => updateWidgetCss(selectedWidget.id, { fontWeight: e.target.value })}
+              >
+                <option value="normal">常规 (400)</option>
+                <option value="500">中等 (500)</option>
+                <option value="600">半粗 (600)</option>
+                <option value="bold">加粗 (700)</option>
+              </select>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between pt-1">
             <span className="text-[11px] text-slate-600">对齐方式</span>
             <div className="flex bg-slate-100 rounded p-0.5 border border-slate-200">
               <button
-                className={`p-1 rounded ${
+                className={`p-1 rounded cursor-pointer ${
                   css.textAlign === 'left' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'
                 }`}
                 onClick={() => updateWidgetCss(selectedWidget.id, { textAlign: 'left' })}
@@ -314,7 +549,7 @@ export const RightSetter: React.FC<RightSetterProps> = ({
                 <AlignLeft className="w-3.5 h-3.5" />
               </button>
               <button
-                className={`p-1 rounded ${
+                className={`p-1 rounded cursor-pointer ${
                   css.textAlign === 'center' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'
                 }`}
                 onClick={() => updateWidgetCss(selectedWidget.id, { textAlign: 'center' })}
@@ -322,7 +557,7 @@ export const RightSetter: React.FC<RightSetterProps> = ({
                 <AlignCenter className="w-3.5 h-3.5" />
               </button>
               <button
-                className={`p-1 rounded ${
+                className={`p-1 rounded cursor-pointer ${
                   css.textAlign === 'right' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'
                 }`}
                 onClick={() => updateWidgetCss(selectedWidget.id, { textAlign: 'right' })}
@@ -334,8 +569,60 @@ export const RightSetter: React.FC<RightSetterProps> = ({
         </div>
 
         {/* 4. Background & Border */}
-        <div className="space-y-2 pt-2 border-t border-slate-100">
-          <label className="font-semibold text-slate-700">背景与边框</label>
+        <div className="space-y-2.5 pt-2 border-t border-slate-100">
+          <label className="font-semibold text-slate-700 flex items-center justify-between">
+            <span>背景与边框</span>
+            <button
+              type="button"
+              onClick={() => updateWidgetCss(selectedWidget.id, { backgroundColor: 'transparent' })}
+              className="text-[10px] text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 font-medium"
+            >
+              🚫 设置为透明背景
+            </button>
+          </label>
+
+          {/* Quick Color Presets */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] text-slate-400">预设颜色：</span>
+            <button
+              type="button"
+              onClick={() => updateWidgetCss(selectedWidget.id, { backgroundColor: 'transparent' })}
+              className="px-1.5 py-0.5 text-[10px] border border-dashed border-slate-300 rounded text-slate-600 hover:bg-slate-100 font-mono"
+            >
+              🚫 透明
+            </button>
+            <button
+              type="button"
+              onClick={() => updateWidgetCss(selectedWidget.id, { backgroundColor: '#ffffff' })}
+              className="w-5 h-5 rounded border border-slate-300 bg-white shadow-2xs"
+              title="纯白"
+            />
+            <button
+              type="button"
+              onClick={() => updateWidgetCss(selectedWidget.id, { backgroundColor: '#f1f5f9' })}
+              className="w-5 h-5 rounded border border-slate-300 bg-slate-100 shadow-2xs"
+              title="淡灰 (1.3 边栏色)"
+            />
+            <button
+              type="button"
+              onClick={() => updateWidgetCss(selectedWidget.id, { backgroundColor: '#1e3a8a' })}
+              className="w-5 h-5 rounded border border-slate-300 bg-blue-900 shadow-2xs"
+              title="藏蓝"
+            />
+            <button
+              type="button"
+              onClick={() => updateWidgetCss(selectedWidget.id, { backgroundColor: '#2563eb' })}
+              className="w-5 h-5 rounded border border-slate-300 bg-blue-600 shadow-2xs"
+              title="宝蓝"
+            />
+            <button
+              type="button"
+              onClick={() => updateWidgetCss(selectedWidget.id, { backgroundColor: '#0f172a' })}
+              className="w-5 h-5 rounded border border-slate-300 bg-slate-900 shadow-2xs"
+              title="墨黑"
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             <div>
               <span className="text-[10px] text-slate-400">背景颜色</span>
@@ -343,7 +630,7 @@ export const RightSetter: React.FC<RightSetterProps> = ({
                 <input
                   type="color"
                   className="w-8 h-7 border border-slate-200 rounded cursor-pointer"
-                  value={css.backgroundColor || '#ffffff'}
+                  value={css.backgroundColor === 'transparent' ? '#ffffff' : (css.backgroundColor || '#ffffff')}
                   onChange={(e) =>
                     updateWidgetCss(selectedWidget.id, { backgroundColor: e.target.value })
                   }
@@ -351,8 +638,8 @@ export const RightSetter: React.FC<RightSetterProps> = ({
                 <input
                   type="text"
                   className="w-full p-1 border border-slate-200 rounded text-slate-800 text-[11px]"
-                  value={css.backgroundColor || ''}
-                  placeholder="无背景"
+                  value={css.backgroundColor || 'transparent'}
+                  placeholder="transparent"
                   onChange={(e) =>
                     updateWidgetCss(selectedWidget.id, { backgroundColor: e.target.value })
                   }
@@ -373,17 +660,64 @@ export const RightSetter: React.FC<RightSetterProps> = ({
             </div>
           </div>
 
+          {/* Opacity Slider */}
+          <div className="pt-2 border-t border-slate-100/80 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-slate-600 font-semibold">透明度 / 不透明度 (Opacity)</span>
+              <span className="font-mono text-[11px] text-blue-600 font-bold">
+                {Math.round((css.opacity !== undefined ? css.opacity : 1.0) * 100)}%
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                value={css.opacity !== undefined ? css.opacity : 1.0}
+                onChange={(e) =>
+                  updateWidgetCss(selectedWidget.id, { opacity: parseFloat(e.target.value) })
+                }
+              />
+              <button
+                type="button"
+                onClick={() => updateWidgetCss(selectedWidget.id, { opacity: 0 })}
+                className="px-1.5 py-0.5 text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 rounded shrink-0 border border-slate-200 font-mono"
+              >
+                0%
+              </button>
+              <button
+                type="button"
+                onClick={() => updateWidgetCss(selectedWidget.id, { opacity: 1.0 })}
+                className="px-1.5 py-0.5 text-[10px] bg-blue-50 hover:bg-blue-100 text-blue-700 rounded shrink-0 border border-blue-200 font-mono font-bold"
+              >
+                100%
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-2 pt-1">
             <div>
               <span className="text-[10px] text-slate-400">边框颜色</span>
-              <input
-                type="color"
-                className="w-full h-7 border border-slate-200 rounded cursor-pointer"
-                value={css.borderColor || '#cbd5e1'}
-                onChange={(e) =>
-                  updateWidgetCss(selectedWidget.id, { borderColor: e.target.value })
-                }
-              />
+              <div className="flex gap-1">
+                <input
+                  type="color"
+                  className="w-8 h-7 border border-slate-200 rounded cursor-pointer"
+                  value={css.borderColor === 'transparent' ? '#cbd5e1' : (css.borderColor || '#cbd5e1')}
+                  onChange={(e) =>
+                    updateWidgetCss(selectedWidget.id, { borderColor: e.target.value })
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={() => updateWidgetCss(selectedWidget.id, { borderColor: 'transparent', borderWidth: 0 })}
+                  className="px-1 text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 rounded border border-slate-200 shrink-0"
+                  title="无边框"
+                >
+                  无边框
+                </button>
+              </div>
             </div>
             <div>
               <span className="text-[10px] text-slate-400">边框宽度 (px)</span>

@@ -1,7 +1,19 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, CheckCircle2, FileUp, Loader2, ShieldCheck, Sparkles, User, Wand2, X } from "lucide-react";
+import {
+  Camera,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  FileUp,
+  Loader2,
+  ShieldCheck,
+  Sparkles,
+  User,
+  Wand2,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,6 +38,123 @@ const STAGE_STEPS = [
   { id: "optimize", name: "简历改写", label: "正在定制优化简历 Bullet Points", startPct: 70, endPct: 82 },
   { id: "interview", name: "面试预测", label: "正在预测高频面试考点与回答", startPct: 85, endPct: 95 },
 ];
+
+function detectIndustrySmart(targetRole: string, jobDescription: string): string {
+  const roleText = targetRole.trim().toLowerCase();
+  const jdText = jobDescription.trim().toLowerCase();
+
+  if (!roleText && !jdText) {
+    return "互联网 / 软件工程";
+  }
+
+  const rules: { industry: string; primary: string[]; secondary: string[] }[] = [
+    {
+      industry: "互联网 / 软件工程",
+      primary: [
+        "java", "后端", "服务端", "全栈", "软件工程师", "软件开发",
+        "python", "golang", "go语言", "c++", "c#", ".net", "架构师",
+        "测试工程师", "qa", "运维", "devops", "数据库", "微服务",
+        "前端", "web前端", "系统工程师", "技术专家", "系统架构"
+      ],
+      secondary: ["软件", "程序员", "代码", "基础架构", "中间件", "性能优化", "研发"],
+    },
+    {
+      industry: "人工智能 / AIGC",
+      primary: [
+        "aigc", "llm", "大模型", "nlp", "cv", "生成式ai", "深度学习",
+        "算法工程师", "机器学习", "transformer", "prompt工程师", "大语言模型",
+        "rag", "langchain", "模型微调"
+      ],
+      secondary: ["ai产品", "ai应用", "智能体", "agent", "pytorch", "tensorflow", "aigc应用"],
+    },
+    {
+      industry: "互联网 / SaaS",
+      primary: ["saas", "tob服务", "企业服务", "crm系统", "erp系统", "oa系统", "协同办公", "prm"],
+      secondary: ["云计算", "paas", "软件服务", "b端产品"],
+    },
+    {
+      industry: "芯片 / 半导体",
+      primary: ["半导体", "芯片", "ic设计", "晶圆", "eda", "fpga", "vlsi", "光刻", "封装测试", "数字前端", "模拟电路"],
+      secondary: ["soc", "verilog", "asic", "集成电路"],
+    },
+    {
+      industry: "新能源 / 智能汽车",
+      primary: ["新能源汽车", "自动驾驶", "智驾", "动力电池", "储能", "三电系统", "智能座舱", "车联网", "adas"],
+      secondary: ["整车", "特斯拉", "比亚迪", "蔚来", "小鹏", "理想", "汽车", "底盘"],
+    },
+    {
+      industry: "金融科技 / FinTech",
+      primary: ["金融科技", "fintech", "风控算法", "量化交易", "证券", "基金", "信贷风控", "支付结算", "保险科技", "核心交易系统"],
+      secondary: ["银行", "金融", "财富管理", "资产管理", "券商"],
+    },
+    {
+      industry: "医疗健康 / 生物医药",
+      primary: ["生物医药", "医疗器械", "临床试验", "创新药", "基因测序", "靶点", "体外诊断", "ivd", "智慧医疗", "医疗软件"],
+      secondary: ["医疗", "医院", "药企", "健康管理", "护理"],
+    },
+    {
+      industry: "电商 / 跨境电商",
+      primary: ["跨境电商", "亚马逊", "amazon", "shopee", "lazada", "ebay", "独立站", "淘宝", "京东", "拼多多", "直播带货", "gmv"],
+      secondary: ["电商", "选品", "类目经理", "供应链管理", "转化率", "店铺运营"],
+    },
+    {
+      industry: "游戏 / 动漫 / 娱乐",
+      primary: ["游戏策划", "手游", "端游", "unity3d", "unreal", "ue4", "ue5", "游戏原画", "游戏关卡", "游戏特效", "游戏引擎"],
+      secondary: ["游戏", "电竞", "二次元", "3d建模", "渲染"],
+    },
+    {
+      industry: "通信 / 物联网 / 硬件",
+      primary: ["通信", "5g", "物联", "iot", "嵌入式", "单片机", "硬件工程师", "驱动开发", "rtos", "传感器", "芯片开发"],
+      secondary: ["硬件", "电子", "电路板", "pcb"],
+    },
+    {
+      industry: "网络安全",
+      primary: ["网络安全", "信息安全", "渗透测试", "攻防演练", "secops", "防火墙", "零信任架构", "漏洞挖掘"],
+      secondary: ["安全", "漏洞", "合规", "数据安全", "soc"],
+    },
+  ];
+
+  const matchKeyword = (str: string, keyword: string): boolean => {
+    if (/^[a-z0-9+#]{1,6}$/i.test(keyword)) {
+      const escaped = keyword.replace(/[+#]/g, "\\$&");
+      const regex = new RegExp(`(?:^|[^a-z0-9+#])${escaped}(?:$|[^a-z0-9+#])`, "i");
+      return regex.test(str);
+    }
+    return str.includes(keyword.toLowerCase());
+  };
+
+  let bestIndustry = "互联网 / 软件工程";
+  let maxScore = 0;
+
+  for (const rule of rules) {
+    let score = 0;
+
+    for (const kw of rule.primary) {
+      if (matchKeyword(roleText, kw)) {
+        score += 100;
+      }
+      if (matchKeyword(jdText, kw)) {
+        score += 10;
+      }
+    }
+
+    for (const kw of rule.secondary) {
+      if (matchKeyword(roleText, kw)) {
+        score += 30;
+      }
+      if (matchKeyword(jdText, kw)) {
+        score += 3;
+      }
+    }
+
+    if (score > maxScore) {
+      maxScore = score;
+      bestIndustry = rule.industry;
+    }
+  }
+
+  return bestIndustry;
+}
 
 export function InputStep() {
   const {
@@ -53,6 +182,7 @@ export function InputStep() {
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [showAllIndustries, setShowAllIndustries] = useState(false);
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -68,9 +198,14 @@ export function InputStep() {
     reader.readAsDataURL(file);
   };
 
-  const processPdfFile = async (file: File) => {
-    if (file.type !== "application/pdf" && !file.name.endsWith(".pdf")) {
-      setPdfError("仅支持上传 PDF 格式文件 (.pdf)");
+  const processResumeFile = async (file: File) => {
+    const fileName = file.name.toLowerCase();
+    const isPdf = file.type === "application/pdf" || fileName.endsWith(".pdf");
+    const isWord = fileName.endsWith(".docx") || fileName.endsWith(".doc");
+    const isTxt = fileName.endsWith(".txt");
+
+    if (!isPdf && !isWord && !isTxt) {
+      setPdfError("仅支持上传 PDF (.pdf)、Word (.docx / .doc) 或文本 (.txt) 格式文件");
       return;
     }
 
@@ -78,6 +213,17 @@ export function InputStep() {
     setPdfError(null);
 
     try {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        setUserInput({
+          rawFileName: file.name,
+          rawFileType: isPdf ? "pdf" : isWord ? "word" : "txt",
+          rawFileDataUrl: dataUrl,
+        });
+      };
+      reader.readAsDataURL(file);
+
       const formData = new FormData();
       formData.append("file", file);
 
@@ -88,12 +234,12 @@ export function InputStep() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "解析 PDF 失败");
+        throw new Error(data.error || "解析文件失败");
       }
 
       setUserInput({ originalResume: data.text });
     } catch (err) {
-      setPdfError(err instanceof Error ? err.message : "解析 PDF 失败，请直接粘贴文本");
+      setPdfError(err instanceof Error ? err.message : "解析文件失败，请直接粘贴文本");
     } finally {
       setUploadingPdf(false);
       if (fileInputRef.current) {
@@ -105,7 +251,7 @@ export function InputStep() {
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      await processPdfFile(file);
+      await processResumeFile(file);
     }
   };
 
@@ -140,7 +286,7 @@ export function InputStep() {
 
     const file = e.dataTransfer.files?.[0];
     if (file) {
-      await processPdfFile(file);
+      await processResumeFile(file);
     }
   };
 
@@ -264,88 +410,6 @@ export function InputStep() {
         </label>
       </div>
 
-      <div className="mb-4 flex gap-2">
-        <Button variant="outline" size="sm" onClick={loadExampleData}>
-          <Wand2 className="h-3.5 w-3.5" />
-          使用示例数据
-        </Button>
-        <Button size="sm" onClick={handleAnalyze} disabled={!canAnalyze || isAnalyzing}>
-          {isAnalyzing ? (
-            <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              分析中...
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-3.5 w-3.5" />
-              开始分析
-            </>
-          )}
-        </Button>
-        {isAnalyzing && (
-          <Button variant="ghost" size="sm" onClick={handleCancel}>
-            <X className="h-3.5 w-3.5" />
-            取消
-          </Button>
-        )}
-      </div>
-
-      {/* Multi-stage High-End Progress Card */}
-      {isAnalyzing && analysisStage && (
-        <div className="mb-4 rounded-xl border border-blue-200/80 bg-gradient-to-b from-blue-50/90 via-indigo-50/40 to-white p-4 shadow-sm space-y-3.5 transition-all">
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2 font-semibold text-blue-950">
-              {analysisStage.progressPercent < 100 ? (
-                <Loader2 className="h-4 w-4 animate-spin text-blue-600 shrink-0" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-              )}
-              <span>{analysisStage.label}</span>
-            </div>
-            <div className="flex items-center gap-1 font-mono text-xs font-bold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-md">
-              <span>{analysisStage.progressPercent}%</span>
-            </div>
-          </div>
-
-          <Progress
-            value={analysisStage.progressPercent}
-            className="h-2.5 bg-blue-100/80 shadow-inner"
-            indicatorClassName="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 shadow-md transition-all duration-500"
-          />
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-            {STAGE_STEPS.map((step, idx) => {
-              const isCompleted = analysisStage.completedStages.includes(step.id);
-              const isActive = analysisStage.stageId === step.id && !isCompleted;
-
-              return (
-                <div
-                  key={step.id}
-                  className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 px-2 text-[11px] font-medium transition-all ${
-                    isCompleted
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs"
-                      : isActive
-                      ? "bg-blue-100/90 text-blue-900 border border-blue-300 font-semibold ring-2 ring-blue-400/20"
-                      : "bg-neutral-100/60 text-neutral-400 border border-neutral-200/40"
-                  }`}
-                >
-                  {isCompleted ? (
-                    <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
-                  ) : isActive ? (
-                    <Loader2 className="h-3 w-3 animate-spin text-blue-600 shrink-0" />
-                  ) : (
-                    <span className="h-1.5 w-1.5 rounded-full bg-neutral-300 shrink-0" />
-                  )}
-                  <span className="truncate">
-                    {idx + 1}. {step.name}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {analysisError && (
         <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {analysisError}
@@ -368,14 +432,163 @@ export function InputStep() {
                 onChange={(e) => setUserInput({ targetRole: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="industry">行业</Label>
+            <div className="space-y-2 sm:col-span-2 md:col-span-1">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="industry" className="flex items-center gap-1.5">
+                  <span>行业</span>
+                  <span className="text-[11px] font-normal text-neutral-400">（可选）</span>
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const detected = detectIndustrySmart(userInput.targetRole, userInput.jobDescription);
+                    setUserInput({ industry: detected });
+                  }}
+                  className="text-[11px] text-blue-600 hover:text-blue-700 font-medium flex items-center gap-0.5 hover:underline"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  智能识别
+                </button>
+              </div>
               <Input
                 id="industry"
-                placeholder="如：企业服务 / SaaS"
+                placeholder="如：企业服务 / SaaS（可选择或直接输入）"
                 value={userInput.industry}
                 onChange={(e) => setUserInput({ industry: e.target.value })}
               />
+
+              {/* Popular tags preview */}
+              <div className="space-y-2 pt-1">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      "互联网 / 软件工程",
+                      "人工智能 / AIGC",
+                      "互联网 / SaaS",
+                      "芯片 / 半导体",
+                      "新能源 / 智能汽车",
+                      "金融科技 / FinTech",
+                      "电商 / 跨境电商",
+                      "医疗健康",
+                    ].map((ind) => (
+                      <button
+                        key={ind}
+                        type="button"
+                        onClick={() => setUserInput({ industry: ind })}
+                        className={`rounded-full px-2.5 py-0.5 text-[11px] transition-all ${
+                          userInput.industry === ind
+                            ? "bg-blue-600 text-white font-medium shadow-2xs"
+                            : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200/80"
+                        }`}
+                      >
+                        {ind}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAllIndustries(!showAllIndustries)}
+                    className="text-[11px] font-medium text-blue-600 hover:text-blue-700 flex items-center gap-0.5 shrink-0 hover:underline ml-auto"
+                  >
+                    {showAllIndustries ? (
+                      <>
+                        收起分类 <ChevronUp className="h-3 w-3" />
+                      </>
+                    ) : (
+                      <>
+                        更多行业 (25+) <ChevronDown className="h-3 w-3" />
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Expanded Full Categorized Industry Panel */}
+                {showAllIndustries && (
+                  <div className="mt-2.5 rounded-lg border border-neutral-200/90 bg-neutral-50/70 p-3 space-y-3 animate-in fade-in duration-200">
+                    {[
+                      {
+                        category: "IT / 互联网 / 科技",
+                        items: [
+                          "人工智能 / AIGC",
+                          "互联网 / SaaS",
+                          "软件 / 信息技术",
+                          "游戏 / 动漫 / 娱乐",
+                          "网络安全",
+                          "区块链 / Web3",
+                        ],
+                      },
+                      {
+                        category: "电子 / 制造 / 汽车",
+                        items: [
+                          "芯片 / 半导体",
+                          "新能源 / 智能汽车",
+                          "工业自动化 / 机器人",
+                          "消费电子 / 智能硬件",
+                          "高端装备 / 制造",
+                          "航空航天 / 军工",
+                        ],
+                      },
+                      {
+                        category: "金融 / 商业 / 企服",
+                        items: [
+                          "金融科技 / FinTech",
+                          "银行 / 证券 / 基金",
+                          "投资 / 创投 / PE",
+                          "专业咨询 / 审计 / 法律",
+                        ],
+                      },
+                      {
+                        category: "消费 / 电商 / 传媒",
+                        items: [
+                          "电商 / 跨境电商",
+                          "新零售 / 快消品",
+                          "物流 / 供应链",
+                          "广告 / 传媒 / 公关",
+                        ],
+                      },
+                      {
+                        category: "医疗 / 能源 / 材料",
+                        items: [
+                          "医疗健康 / 生物医药",
+                          "医疗器械",
+                          "清洁能源 / 环保",
+                          "化工 / 新材料",
+                        ],
+                      },
+                      {
+                        category: "服务 / 教育 / 地产",
+                        items: [
+                          "在线教育 / EdTech",
+                          "房地产 / 建筑设计",
+                          "文旅 / 生活服务",
+                        ],
+                      },
+                    ].map((group) => (
+                      <div key={group.category} className="space-y-1.5">
+                        <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider block">
+                          {group.category}
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {group.items.map((item) => (
+                            <button
+                              key={item}
+                              type="button"
+                              onClick={() => setUserInput({ industry: item })}
+                              className={`rounded-md px-2 py-0.5 text-[11px] transition-all ${
+                                userInput.industry === item
+                                  ? "bg-blue-600 text-white font-medium shadow-2xs"
+                                  : "bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-100/80"
+                              }`}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <Label>公司类型</Label>
@@ -505,14 +718,14 @@ export function InputStep() {
             <div>
               <CardTitle className="text-sm">原始简历</CardTitle>
               <CardDescription>
-                支持拖拽 PDF 文件到框内直接上传，或点击按钮解析全文本
+                支持拖拽 PDF / Word (.docx / .doc) 文件到框内直接上传，或点击按钮解析全文本
               </CardDescription>
             </div>
             <div>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,application/pdf"
+                accept=".pdf,.docx,.doc,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain"
                 className="hidden"
                 onChange={handlePdfUpload}
               />
@@ -526,12 +739,12 @@ export function InputStep() {
                 {uploadingPdf ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    解析 PDF 中...
+                    解析文件中...
                   </>
                 ) : (
                   <>
                     <FileUp className="h-3.5 w-3.5" />
-                    上传 PDF 简历
+                    上传 PDF / Word 简历
                   </>
                 )}
               </Button>
@@ -542,7 +755,7 @@ export function InputStep() {
               <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center rounded-lg bg-blue-500/15 backdrop-blur-[2px]">
                 <div className="flex items-center gap-2.5 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg animate-bounce">
                   <FileUp className="h-4 w-4" />
-                  松开鼠标，自动解析 PDF 简历
+                  松开鼠标，自动解析 PDF / Word 简历
                 </div>
               </div>
             )}
@@ -553,7 +766,7 @@ export function InputStep() {
             )}
             <Textarea
               className="min-h-[240px] font-mono text-xs leading-relaxed"
-              placeholder="可以直接拖拽 PDF 文件到这里，或粘贴简历内容..."
+              placeholder="可以直接拖拽 PDF 或 Word 文件到这里，或直接粘贴简历文本内容..."
               value={userInput.originalResume}
               onChange={(e) => setUserInput({ originalResume: e.target.value })}
             />
@@ -574,6 +787,112 @@ export function InputStep() {
             />
           </CardContent>
         </Card>
+      </div>
+
+      {/* Static Bottom Action Bar & Progress Section */}
+      <div className="mt-6 rounded-xl border border-blue-200/80 bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-purple-50/70 p-5 shadow-md space-y-4 transition-all">
+        {/* If analyzing: display high-end integrated progress bar & stage indicators */}
+        {isAnalyzing && analysisStage ? (
+          <div className="space-y-3.5">
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 font-semibold text-blue-950">
+                {analysisStage.progressPercent < 100 ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600 shrink-0" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                )}
+                <span>{analysisStage.label}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs font-bold text-blue-700 bg-blue-100/90 border border-blue-200 px-2 py-0.5 rounded-md">
+                  {analysisStage.progressPercent}%
+                </span>
+                <Button variant="outline" size="sm" onClick={handleCancel} className="h-7 text-xs bg-white/80">
+                  <X className="h-3.5 w-3.5 mr-1" />
+                  取消分析
+                </Button>
+              </div>
+            </div>
+
+            <Progress
+              value={analysisStage.progressPercent}
+              className="h-2.5 bg-blue-100/80 shadow-inner"
+              indicatorClassName="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 shadow-md transition-all duration-500"
+            />
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+              {STAGE_STEPS.map((step, idx) => {
+                const isCompleted = analysisStage.completedStages.includes(step.id);
+                const isActive = analysisStage.stageId === step.id && !isCompleted;
+
+                return (
+                  <div
+                    key={step.id}
+                    className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 px-2 text-[11px] font-medium transition-all ${
+                      isCompleted
+                        ? "bg-emerald-50/90 text-emerald-800 border border-emerald-200/80 shadow-2xs"
+                        : isActive
+                        ? "bg-white text-blue-900 border border-blue-400 font-semibold shadow-xs ring-2 ring-blue-400/20"
+                        : "bg-white/40 text-neutral-400 border border-neutral-200/40"
+                    }`}
+                  >
+                    {isCompleted ? (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                    ) : isActive ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-blue-600 shrink-0" />
+                    ) : (
+                      <span className="h-1.5 w-1.5 rounded-full bg-neutral-300 shrink-0" />
+                    )}
+                    <span className="truncate">
+                      {idx + 1}. {step.name}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs">
+              {!canAnalyze ? (
+                <span className="flex items-center gap-1.5 text-amber-700 bg-amber-50 border border-amber-200/70 px-3 py-1.5 rounded-lg font-medium">
+                  <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                  请填写目标岗位、目标 JD 及原始简历以开始分析
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 text-emerald-800 bg-emerald-50 border border-emerald-200/70 px-3 py-1.5 rounded-lg font-medium">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  材料已完整就绪，随时可发起 AI 智能解析
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+              <Button variant="outline" size="default" onClick={loadExampleData} disabled={isAnalyzing}>
+                <Wand2 className="h-4 w-4 text-neutral-600" />
+                使用示例数据
+              </Button>
+              <Button
+                size="default"
+                onClick={handleAnalyze}
+                disabled={!canAnalyze || isAnalyzing}
+                className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold shadow-md shadow-blue-500/20 px-6 py-2.5 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    AI 分析中...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 text-amber-300 animate-pulse" />
+                    开始 AI 匹配分析
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

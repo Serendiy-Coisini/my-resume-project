@@ -19,10 +19,12 @@ export interface TemplateConfig {
 
 export interface TemplateOptions {
   themeColor?: string;
+  avatarShape?: "rectangle" | "circle";
 }
 
 export const DEFAULT_TEMPLATE_OPTIONS: TemplateOptions = {
   themeColor: "#1e3a8a",
+  avatarShape: "rectangle",
 };
 
 export const TEMPLATES: TemplateConfig[] = [
@@ -74,136 +76,174 @@ export const TEMPLATES: TemplateConfig[] = [
  * Replaces placeholders in custom HTML templates.
  * Supports both English placeholders {{name}} and Chinese placeholders {{姓名}}.
  */
-export function compileCustomTemplate(htmlTemplate: string, resume: FinalResume): string {
+export function compileCustomTemplate(
+  htmlTemplate: string,
+  rawResume: FinalResume,
+  options: TemplateOptions = DEFAULT_TEMPLATE_OPTIONS
+): string {
+  const resume = {
+    personalInfo: {
+      name: rawResume?.personalInfo?.name || "求职者",
+      email: rawResume?.personalInfo?.email || "",
+      phone: rawResume?.personalInfo?.phone || "",
+      location: rawResume?.personalInfo?.location || "",
+      avatarUrl: rawResume?.personalInfo?.avatarUrl || "",
+    },
+    jobIntent: rawResume?.jobIntent || "",
+    summary: rawResume?.summary || "",
+    coreSkills: rawResume?.coreSkills || [],
+    workExperience: rawResume?.workExperience || [],
+    projectExperience: rawResume?.projectExperience || [],
+    skillsAndTools: rawResume?.skillsAndTools || [],
+    education: rawResume?.education || { school: "", degree: "", period: "" },
+  };
+
   const p = resume.personalInfo;
   const avatarUrl = p.avatarUrl || "";
 
-  const workExpHTML = resume.workExperience
+  const isCircle = options.avatarShape === "circle";
+  const avatarStyle = isCircle
+    ? "width: 85px; height: 85px; object-fit: cover; border-radius: 50%; border: 2px solid #cbd5e1; display: block; margin: 0 auto 10px auto; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+    : "width: 95px; height: 120px; object-fit: cover; border-radius: 4px; border: 1px solid #cbd5e1; display: block; margin: 0 auto 10px auto; box-shadow: 0 2px 4px rgba(0,0,0,0.1);";
+
+  const avatarHTML = avatarUrl
+    ? `<img src="${avatarUrl}" style="${avatarStyle}" alt="${p.name || '照片'}" />`
+    : "";
+
+  const workExpHTML = (resume.workExperience || [])
     .map(
       (w) => `
       <div style="margin-bottom: 14px;">
         <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 13.5px; color: #1e293b;">
-          <span>${w.company} · ${w.role}</span>
-          <span style="color: #64748b; font-weight: normal; font-size: 12px;">${w.period}</span>
+          <span>${w.company || ""} · ${w.role || ""}</span>
+          <span style="color: #64748b; font-weight: normal; font-size: 12px;">${w.period || ""}</span>
         </div>
         <ul style="margin: 6px 0 10px 0; padding-left: 18px; color: #334155; font-size: 13px;">
-          ${w.bullets.map((b) => `<li style="margin-bottom: 4px; line-height: 1.6;">${b}</li>`).join("")}
+          ${(w.bullets || []).map((b) => `<li style="margin-bottom: 4px; line-height: 1.6;">${b}</li>`).join("")}
         </ul>
       </div>
     `
     )
     .join("");
 
-  const projExpHTML = resume.projectExperience
+  const projExpHTML = (resume.projectExperience || [])
     .map(
-      (p) => `
+      (proj) => `
       <div style="margin-bottom: 14px;">
         <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 13.5px; color: #1e293b;">
-          <span>${p.name} · ${p.role}</span>
-          <span style="color: #64748b; font-weight: normal; font-size: 12px;">${p.period}</span>
+          <span>${proj.name || ""} · ${proj.role || ""}</span>
+          <span style="color: #64748b; font-weight: normal; font-size: 12px;">${proj.period || ""}</span>
         </div>
         <ul style="margin: 6px 0 10px 0; padding-left: 18px; color: #334155; font-size: 13px;">
-          ${p.bullets.map((b) => `<li style="margin-bottom: 4px; line-height: 1.6;">${b}</li>`).join("")}
+          ${(proj.bullets || []).map((b) => `<li style="margin-bottom: 4px; line-height: 1.6;">${b}</li>`).join("")}
         </ul>
       </div>
     `
     )
     .join("");
 
-  const coreSkillsHTML = resume.coreSkills
+  const coreSkillsHTML = (resume.coreSkills || [])
     .map(
       (s) =>
         `<span style="display: inline-block; background: #eff6ff; color: #1d4ed8; padding: 3px 10px; border-radius: 4px; font-size: 12px; margin: 3px 6px 3px 0;">${s}</span>`
     )
     .join(" ");
 
-  const avatarHTML = avatarUrl
-    ? `<img src="${avatarUrl}" style="width: 72px; height: 90px; object-fit: cover; border-radius: 4px; border: 1px solid #cbd5e1; display: block; margin-bottom: 12px;" />`
-    : "";
-
-  let tpl = (htmlTemplate || "").trim();
+  let tpl = (htmlTemplate || "")
+    .replace(/```html\s*/gi, "")
+    .replace(/```\s*/g, "")
+    .trim();
 
   // Fallback: If template doesn't contain HTML tags, wrap it properly into readable HTML layout
-  if (!tpl.includes("<html") && !tpl.includes("<div") && !tpl.includes("<body") && !tpl.includes("<p")) {
-    tpl = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>${p.name || "简历"}</title>
-  <style>
-    @page { size: A4; margin: 8mm; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 13.5px; line-height: 1.65; color: #1e293b; margin: 0; padding: 12px 16px; background: #fff; }
-    h1 { font-size: 24px; font-weight: 700; color: #1e1b4b; margin: 0 0 6px 0; }
-    .contact { font-size: 12.5px; color: #64748b; margin-bottom: 18px; border-bottom: 2px solid #4f46e5; padding-bottom: 10px; }
-    .sec-title { font-size: 14px; font-weight: 700; color: #312e81; border-left: 4px solid #4f46e5; padding-left: 8px; margin-top: 22px; margin-bottom: 12px; text-transform: uppercase; }
-    ul { margin: 6px 0 12px 0; padding-left: 18px; }
-    li { margin-bottom: 4px; color: #334155; }
-  </style>
-</head>
-<body>
-  ${avatarHTML}
-  <h1>{{姓名}}</h1>
-  <div class="contact">{{邮箱}} · {{电话}} · {{城市}} · 求职意向：{{求职意向}}</div>
-
-  <div class="sec-title">职业摘要</div>
-  <p style="line-height:1.65;">{{职业摘要}}</p>
-
-  <div class="sec-title">核心能力</div>
-  <div>{{核心能力}}</div>
-
-  <div class="sec-title">工作经历</div>
-  <div>{{工作经历}}</div>
-
-  <div class="sec-title">项目经历</div>
-  <div>{{项目经历}}</div>
-
-  <div class="sec-title">技能工具</div>
-  <p>{{技能工具}}</p>
-
-  <div class="sec-title">教育背景</div>
-  <p>{{教育背景}}</p>
-</body>
-</html>`;
+  if (!tpl || (!tpl.includes("<html") && !tpl.includes("<div") && !tpl.includes("<body") && !tpl.includes("<p"))) {
+    tpl = DEFAULT_CUSTOM_TEMPLATE_HTML;
   }
 
+  const eduStr = `${resume.education?.school || ""} · ${resume.education?.degree || ""} (${resume.education?.period || ""})`;
+  const skillStr = (resume.skillsAndTools || []).join(" · ");
+
   const replacements: Record<string, string> = {
+    // Avatar / Photo
     "{{avatar}}": avatarHTML,
+    "{{AVATAR}}": avatarHTML,
     "{{证件照}}": avatarHTML,
     "{{头像}}": avatarHTML,
-    "{{name}}": p.name,
-    "{{姓名}}": p.name,
-    "{{email}}": p.email,
-    "{{邮箱}}": p.email,
-    "{{phone}}": p.phone,
-    "{{电话}}": p.phone,
-    "{{location}}": p.location,
-    "{{城市}}": p.location,
-    "{{jobIntent}}": resume.jobIntent,
-    "{{求职意向}}": resume.jobIntent,
-    "{{summary}}": resume.summary,
-    "{{职业摘要}}": resume.summary,
+    "{{照片}}": avatarHTML,
+    "{{个人照片}}": avatarHTML,
+    "{{头像URL}}": avatarUrl,
+
+    // Personal Info
+    "{{name}}": p.name || "",
+    "{{NAME}}": p.name || "",
+    "{{姓名}}": p.name || "",
+    "{{email}}": p.email || "",
+    "{{EMAIL}}": p.email || "",
+    "{{邮箱}}": p.email || "",
+    "{{phone}}": p.phone || "",
+    "{{PHONE}}": p.phone || "",
+    "{{电话}}": p.phone || "",
+    "{{手机}}": p.phone || "",
+    "{{location}}": p.location || "",
+    "{{LOCATION}}": p.location || "",
+    "{{城市}}": p.location || "",
+    "{{地址}}": p.location || "",
+    "{{jobIntent}}": resume.jobIntent || "",
+    "{{JOB_INTENT}}": resume.jobIntent || "",
+    "{{求职意向}}": resume.jobIntent || "",
+    "{{意向}}": resume.jobIntent || "",
+    "{{summary}}": resume.summary || "",
+    "{{SUMMARY}}": resume.summary || "",
+    "{{职业摘要}}": resume.summary || "",
+    "{{自我评价}}": resume.summary || "",
+    "{{个人简介}}": resume.summary || "",
+
+    // Experience & Skills
     "{{coreSkills}}": coreSkillsHTML,
+    "{{CORE_SKILLS}}": coreSkillsHTML,
     "{{核心能力}}": coreSkillsHTML,
     "{{workExperience}}": workExpHTML,
+    "{{WORK_EXPERIENCE}}": workExpHTML,
     "{{工作经历}}": workExpHTML,
+    "{{工作/校园经历}}": workExpHTML,
+    "{{工作与校园经历}}": workExpHTML,
+    "{{校园与工作经历}}": workExpHTML,
+    "{{校园经历}}": workExpHTML,
     "{{projectExperience}}": projExpHTML,
+    "{{PROJECT_EXPERIENCE}}": projExpHTML,
     "{{项目经历}}": projExpHTML,
-    "{{skillsAndTools}}": resume.skillsAndTools.join(" · "),
-    "{{技能工具}}": resume.skillsAndTools.join(" · "),
-    "{{school}}": resume.education.school,
-    "{{学校}}": resume.education.school,
-    "{{degree}}": resume.education.degree,
-    "{{学历}}": resume.education.degree,
-    "{{eduPeriod}}": resume.education.period,
-    "{{教育时间}}": resume.education.period,
-    "{{education}}": `${resume.education.school} · ${resume.education.degree} (${resume.education.period})`,
-    "{{教育背景}}": `${resume.education.school} · ${resume.education.degree} (${resume.education.period})`,
+    "{{skillsAndTools}}": skillStr,
+    "{{SKILLS_AND_TOOLS}}": skillStr,
+    "{{技能工具}}": skillStr,
+    "{{所获荣誉与技能}}": skillStr,
+    "{{所获荣誉及证书}}": skillStr,
+    "{{所获荣誉}}": skillStr,
+
+    // Education
+    "{{school}}": resume.education?.school || "",
+    "{{SCHOOL}}": resume.education?.school || "",
+    "{{学校}}": resume.education?.school || "",
+    "{{院校}}": resume.education?.school || "",
+    "{{degree}}": resume.education?.degree || "",
+    "{{DEGREE}}": resume.education?.degree || "",
+    "{{学历}}": resume.education?.degree || "",
+    "{{eduPeriod}}": resume.education?.period || "",
+    "{{教育时间}}": resume.education?.period || "",
+    "{{education}}": eduStr,
+    "{{EDUCATION}}": eduStr,
+    "{{教育背景}}": eduStr,
   };
 
   let compiled = tpl;
   Object.entries(replacements).forEach(([key, val]) => {
     compiled = compiled.replaceAll(key, val);
   });
+
+  // Clean unreplaced birth placeholders
+  compiled = compiled
+    .replace(/<[^>]*>🎂\s*出生年月：\s*\{\{出生年月\}\}<\/[^>]*>/gi, "")
+    .replace(/🎂\s*出生年月：\s*\{\{出生年月\}\}/gi, "")
+    .replace(/\{\{出生年月\}\}/gi, "")
+    .replace(/\{\{出生日期\}\}/gi, "");
 
   return compiled;
 }
@@ -212,11 +252,28 @@ export function compileCustomTemplate(htmlTemplate: string, resume: FinalResume)
  * Renders HTML string for preview and PDF/Word export for chosen template ID.
  */
 export function renderTemplateHTML(
-  resume: FinalResume,
+  rawResume: FinalResume,
   templateId: TemplateId,
   customTemplateHTML?: string,
   options: TemplateOptions = DEFAULT_TEMPLATE_OPTIONS
 ): string {
+  const resume = {
+    personalInfo: {
+      name: rawResume?.personalInfo?.name || "求职者",
+      email: rawResume?.personalInfo?.email || "",
+      phone: rawResume?.personalInfo?.phone || "",
+      location: rawResume?.personalInfo?.location || "",
+      avatarUrl: rawResume?.personalInfo?.avatarUrl || "",
+    },
+    jobIntent: rawResume?.jobIntent || "",
+    summary: rawResume?.summary || "",
+    coreSkills: rawResume?.coreSkills || [],
+    workExperience: rawResume?.workExperience || [],
+    projectExperience: rawResume?.projectExperience || [],
+    skillsAndTools: rawResume?.skillsAndTools || [],
+    education: rawResume?.education || { school: "", degree: "", period: "" },
+  };
+
   const p = resume.personalInfo;
   const avatarUrl = p.avatarUrl || "";
 
@@ -231,13 +288,18 @@ export function renderTemplateHTML(
   const liMB = "4px";
   const marginVal = "4mm";
 
+  const isCircle = options.avatarShape === "circle";
+  const avatarStyle = isCircle
+    ? "width:80px; height:80px; object-fit:cover; border-radius:50%; border:2px solid #fff; box-shadow:0 2px 4px rgba(0,0,0,0.1);"
+    : "width:90px; height:115px; object-fit:cover; border-radius:4px; border:1px solid #cbd5e1; box-shadow:0 2px 4px rgba(0,0,0,0.1);";
+
   const avatarTag = avatarUrl
-    ? `<img src="${avatarUrl}" style="width:72px; height:90px; object-fit:cover; border-radius:4px; border:1px solid #cbd5e1;" />`
+    ? `<img src="${avatarUrl}" style="${avatarStyle}" alt="${p.name}" />`
     : "";
 
   // Custom Uploaded Template
   if (templateId === "custom" && customTemplateHTML) {
-    return compileCustomTemplate(customTemplateHTML, resume);
+    return compileCustomTemplate(customTemplateHTML, resume, options);
   }
 
   // 1. Classic Minimal Single Column Template
@@ -793,36 +855,122 @@ export const DEFAULT_CUSTOM_TEMPLATE_HTML = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>{{姓名}} - 自定义简历模板</title>
+  <title>{{姓名}} - 1.3 简历双栏自定义模板</title>
   <style>
-    @page { size: A4; margin: 8mm; }
-    body { font-family: sans-serif; padding: 24px; color: #1e293b; line-height: 1.65; }
-    h1 { color: #2563eb; margin-bottom: 4px; }
-    .contact { font-size: 13px; color: #64748b; margin-bottom: 16px; border-bottom: 2px solid #2563eb; padding-bottom: 8px; }
-    .section-title { font-weight: bold; font-size: 15px; color: #0f172a; margin-top: 22px; margin-bottom: 10px; }
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+      color: #1e293b;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .layout-container {
+      display: flex;
+      min-height: 100vh;
+      width: 100%;
+    }
+    .sidebar {
+      width: 32%;
+      background-color: #f1f5f9;
+      padding: 32px 20px;
+      border-right: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .avatar-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .name-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: 1px;
+      margin: 10px 0 4px 0;
+    }
+    .sidebar-sec-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #0f172a;
+      border-bottom: 2px solid #334155;
+      padding-bottom: 4px;
+      margin-bottom: 10px;
+    }
+    .info-item {
+      font-size: 12px;
+      color: #475569;
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+    .main-content {
+      flex: 1;
+      padding: 32px 32px;
+      background: #ffffff;
+    }
+    .main-sec-title {
+      font-size: 14.5px;
+      font-weight: 800;
+      color: #0f172a;
+      border-bottom: 2px dashed #94a3b8;
+      padding-bottom: 6px;
+      margin-top: 20px;
+      margin-bottom: 12px;
+    }
+    .main-sec-title:first-child {
+      margin-top: 0;
+    }
+    ul { margin: 6px 0 12px 0; padding-left: 18px; }
+    li { margin-bottom: 4px; color: #334155; }
   </style>
 </head>
 <body>
-  <div>{{证件照}}</div>
-  <h1>{{姓名}}</h1>
-  <div class="contact">{{邮箱}} | {{电话}} | {{城市}} | 意向：{{求职意向}}</div>
+  <div class="layout-container">
+    <!-- Left Sidebar (淡灰底色边栏) -->
+    <div class="sidebar">
+      <div class="avatar-wrapper">
+        {{头像}}
+        <div class="name-title">{{姓名}}</div>
+      </div>
 
-  <div class="section-title">📌 职业摘要</div>
-  <p>{{职业摘要}}</p>
+      <div>
+        <div class="sidebar-sec-title">基本信息</div>
+        <div class="info-item">🏫 院校：{{学校}}</div>
+        <div class="info-item">📞 手机：{{电话}}</div>
+        <div class="info-item">✉️ 邮箱：{{邮箱}}</div>
+        <div class="info-item">📍 城市：{{城市}}</div>
+        <div class="info-item">🎯 意向：{{求职意向}}</div>
+      </div>
 
-  <div class="section-title">⚡ 核心能力</div>
-  <div>{{核心能力}}</div>
+      <div>
+        <div class="sidebar-sec-title">自我评价</div>
+        <div style="font-size: 12px; color: #475569; line-height: 1.65;">
+          {{职业摘要}}
+        </div>
+      </div>
+    </div>
 
-  <div class="section-title">💼 工作经历</div>
-  <div>{{工作经历}}</div>
+    <!-- Right Main Content (右侧主显示区) -->
+    <div class="main-content">
+      <div class="main-sec-title">教育背景</div>
+      <div>{{教育背景}}</div>
 
-  <div class="section-title">🚀 项目经历</div>
-  <div>{{项目经历}}</div>
+      <div class="main-sec-title">工作与校园经历</div>
+      <div>{{工作经历}}</div>
 
-  <div class="section-title">🛠 技能工具</div>
-  <p>{{技能工具}}</p>
+      <div class="main-sec-title">项目经历</div>
+      <div>{{项目经历}}</div>
 
-  <div class="section-title">🎓 教育背景</div>
-  <p>{{教育背景}}</p>
+      <div class="main-sec-title">核心能力与所获荣誉</div>
+      <div>{{核心能力}}</div>
+      <p style="margin-top: 10px; font-size: 12.5px; color: #475569;">{{技能工具}}</p>
+    </div>
+  </div>
 </body>
 </html>`;

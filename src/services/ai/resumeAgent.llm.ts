@@ -149,7 +149,7 @@ export async function runLLMResumeAnalysisStream(
 export async function runLLMRegenerateOptimizedItems(
   input: UserInput,
   style: OptimizeStyle
-): Promise<AnalysisResult["optimizedItems"]> {
+): Promise<{ optimizedItems: AnalysisResult["optimizedItems"] }> {
   const raw = await chatCompletionJSON<{ optimizedItems: AnalysisResult["optimizedItems"] }>({
     system: RESUME_AGENT_SYSTEM_PROMPT,
     user: buildOptimizeUserPrompt(input, style),
@@ -158,7 +158,7 @@ export async function runLLMRegenerateOptimizedItems(
     schema: optimizedItemsResponseSchema,
   });
 
-  return normalizeOptimizedItems(raw.optimizedItems);
+  return { optimizedItems: normalizeOptimizedItems(raw.optimizedItems) };
 }
 
 export async function runLLMFollowUpBullet(

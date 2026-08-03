@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import mammoth from "mammoth";
 
 // Import core pdf-parse library directly to bypass pdf-parse index.js top-level readFileSync side effects
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -66,6 +67,23 @@ function renderPageSmart(pageData: any) {
     });
 }
 
+function extractTextFromBinaryDoc(buffer: Buffer): string {
+  try {
+    const utf16Text = buffer.toString("utf16le");
+    const printableUtf16 = utf16Text.match(/[\u4E00-\u9FA5a-zA-Z0-9\s,.!?:;()\-–—"'\/\n\r\t]{4,}/g) || [];
+    const joined = printableUtf16.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+    if (joined.length > 50) {
+      return joined;
+    }
+  } catch {
+    // Fallback
+  }
+
+  const latinStr = buffer.toString("binary");
+  const printableMatches = latinStr.match(/[\x20-\x7E\u4E00-\u9FA5\u3000-\u303F\uFF00-\uFFEF\r\n\t]{4,}/g) || [];
+  return printableMatches.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -75,52 +93,103 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "未接收到上传的文件" }, { status: 400 });
     }
 
-    if (file.type !== "application/pdf" && !file.name.endsWith(".pdf")) {
-      return NextResponse.json({ error: "仅支持 PDF 格式文件 (.pdf)" }, { status: 400 });
-    }
+    const fileName = file.name.toLowerCase();
 
-    // Limit file size to 10MB
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: "文件大小超过上限（最大支持 10MB）" }, { status: 400 });
+    // Limit file size to 15MB
+    if (file.size > 15 * 1024 * 1024) {
+      return NextResponse.json({ error: "文件大小超过上限（最大支持 15MB）" }, { status: 400 });
     }
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Mute all internal PDF.js console.warn / stdout / stderr font warnings during parsing
-    const originalWarn = console.warn;
-    const originalLog = console.log;
-    const originalStdoutWrite = process.stdout.write;
-    const originalStderrWrite = process.stderr.write;
+    let text = "";
 
-    let pdfData;
-    try {
-      console.warn = () => {};
-      console.log = () => {};
-      process.stdout.write = (() => true) as unknown as typeof process.stdout.write;
-      process.stderr.write = (() => true) as unknown as typeof process.stderr.write;
+    if (fileName.endsWith(".docx")) {
+      try {
+        const result = await mammoth.extractRawText({ buffer });
+        text = result.value || "";
+      } catch (err) {
+        console.error("Docx parsing error:", err);
+        return NextResponse.json(
+          { error: "解析 Word (.docx) 文件失败，请确认文件未损坏或直接粘贴文本" },
+          { status: 400 }
+        );
+      }
+    } else if (fileName.endsWith(".doc")) {
+      try {
+        const result = await mammoth.extractRawText({ buffer });
+        text = result.value || "";
+      } catch {
+        text = extractTextFromBinaryDoc(buffer);
+      }
+      if (!text.trim()) {
+        return NextResponse.json(
+          { error: "解析旧版 Word (.doc) 文本失败，建议另存为 .docx 或 PDF 格式后上传" },
+          { status: 400 }
+        );
+      }
+    } else if (fileName.endsWith(".txt")) {
+      text = buffer.toString("utf-8");
+    } else if (fileName.endsWith(".pdf") || file.type === "application/pdf") {
+      // Mute all internal PDF.js console.warn / stdout / stderr font warnings during parsing
+      const originalWarn = console.warn;
+      const originalLog = console.log;
+      const originalStdoutWrite = process.stdout.write;
+      const originalStderrWrite = process.stderr.write;
 
-      pdfData = await pdfParse(buffer, { pagerender: renderPageSmart });
-    } finally {
-      console.warn = originalWarn;
-      console.log = originalLog;
-      process.stdout.write = originalStdoutWrite;
-      process.stderr.write = originalStderrWrite;
+      let pdfData;
+      try {
+        console.warn = () => {};
+        console.log = () => {};
+        process.stdout.write = (() => true) as unknown as typeof process.stdout.write;
+        process.stderr.write = (() => true) as unknown as typeof process.stderr.write;
+
+        pdfData = await pdfParse(buffer, { pagerender: renderPageSmart });
+      } finally {
+        console.warn = originalWarn;
+        console.log = originalLog;
+        process.stdout.write = originalStdoutWrite;
+        process.stderr.write = originalStderrWrite;
+      }
+
+      text = pdfData.text?.trim() || "";
+
+      if (!text) {
+        return NextResponse.json(
+          { error: "无法识别 PDF 文本内容。原因：该 PDF 可能是纯图片扫描件，或包含无法提取的加密文本。" },
+          { status: 400 }
+        );
+      }
+    } else {
+      // Try mammoth docx auto fallback
+      try {
+        const result = await mammoth.extractRawText({ buffer });
+        if (result.value && result.value.trim().length > 0) {
+          text = result.value;
+        }
+      } catch {
+        // ignore
+      }
+      if (!text) {
+        return NextResponse.json(
+          { error: "仅支持上传 PDF (.pdf)、Word (.docx/.doc) 或文本 (.txt) 格式文件" },
+          { status: 400 }
+        );
+      }
     }
 
-    const text = pdfData.text?.trim();
-
-    if (!text || text.length === 0) {
+    if (!text || text.trim().length === 0) {
       return NextResponse.json(
-        { error: "无法识别 PDF 文本内容。原因：该 PDF 可能是纯图片扫描件，或包含无法提取的加密文本。" },
+        { error: "未能从文件中提取到有效文本，请确认文件是否有文字内容或直接粘贴文本" },
         { status: 400 }
       );
     }
 
-    return NextResponse.json({ text, pages: pdfData.numpages });
+    return NextResponse.json({ text: text.trim() });
   } catch (error) {
-    console.error("PDF Parsing error:", error);
+    console.error("File parsing error:", error);
     const detail = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: `PDF 解析异常: ${detail}` }, { status: 500 });
+    return NextResponse.json({ error: `文件解析异常: ${detail}` }, { status: 500 });
   }
 }

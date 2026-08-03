@@ -25,6 +25,7 @@ export function FollowUpStep() {
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customGeneratedIds, setCustomGeneratedIds] = useState<Set<string>>(new Set());
 
   if (!analysisResult || !analysisResult.followUpQuestions) {
     return (
@@ -58,6 +59,7 @@ export function FollowUpStep() {
         question.userAnswer
       );
       setFollowUpBullet(id, bullet);
+      setCustomGeneratedIds((prev) => new Set(prev).add(id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Bullet 生成失败");
     } finally {
@@ -92,8 +94,29 @@ export function FollowUpStep() {
     <div>
       <SectionTitle
         title="经历追问"
-        description="Agent 针对简历缺口生成追问，填写回答后可生成可用于简历的 bullet"
+        description="针对简历与目标 JD 的硬性缺口进行定向挖掘。您可以补充真实经历细节重新生成专属 Bullet，也可直接采纳参考范例。"
       />
+
+      {/* Concept Clarification Banner */}
+      <div className="mb-6 rounded-xl border border-blue-200/80 bg-gradient-to-r from-blue-50/90 via-indigo-50/40 to-purple-50/50 p-4 text-xs space-y-1.5 shadow-2xs">
+        <div className="flex items-center gap-2 font-bold text-blue-950 text-sm">
+          <Sparkles className="h-4 w-4 text-amber-500 shrink-0" />
+          <span>什么是“经历追问”？它有什么作用？</span>
+        </div>
+        <p className="text-neutral-600 leading-relaxed">
+          AI 诊断发现您的简历在强匹配目标岗位时缺少部分核心证据（如大模型落地、数据量化或高并发经验）。追问旨在协助您补全这些关键细节。
+        </p>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-[11px] font-medium">
+          <span className="text-blue-700 flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+            未填写回答时：下方展示大模型拟定的 **【💡 AI 预设参考 Bullet】**
+          </span>
+          <span className="text-emerald-700 flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            在“你的回答”框填入细节并点击生成：获得 **【✨ 专属定制 Bullet】**
+          </span>
+        </div>
+      </div>
 
       {error && (
         <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -101,62 +124,112 @@ export function FollowUpStep() {
         </div>
       )}
 
-      <div className="mb-6 space-y-4">
-        {followUpQuestions.map((q, index) => (
-          <Card key={q.id}>
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="mb-1 flex items-center gap-2">
-                    <span className="text-xs font-medium text-neutral-400">
-                      追问 {index + 1}
-                    </span>
-                    <Badge variant="outline" className="font-normal">
-                      {q.purpose}
-                    </Badge>
+      <div className="mb-6 space-y-5">
+        {followUpQuestions.map((q, index) => {
+          const isCustom = customGeneratedIds.has(q.id);
+
+          return (
+            <Card key={q.id} className="overflow-hidden border-neutral-200/80 shadow-2xs">
+              <CardHeader className="pb-3 bg-neutral-50/50 border-b border-neutral-100">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="mb-1 flex items-center gap-2">
+                      <span className="text-xs font-semibold text-neutral-500">
+                        追问 {index + 1}
+                      </span>
+                      <Badge variant="outline" className="font-medium bg-white text-blue-700 border-blue-200">
+                        {q.purpose}
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-sm font-semibold leading-snug text-neutral-900">
+                      {q.question}
+                    </CardTitle>
                   </div>
-                  <CardTitle className="text-sm font-medium leading-snug">{q.question}</CardTitle>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor={`answer-${q.id}`}>你的回答</Label>
-                <Textarea
-                  id={`answer-${q.id}`}
-                  className="min-h-[80px] text-sm"
-                  placeholder="填写具体经历、数据和方法..."
-                  value={q.userAnswer}
-                  onChange={(e) => updateFollowUpAnswer(q.id, e.target.value)}
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!q.userAnswer.trim() || loadingId === q.id}
-                onClick={() => handleGenerateBullet(q.id)}
-              >
-                {loadingId === q.id ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    生成中...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-3.5 w-3.5" />
-                    生成简历 bullet
-                  </>
+              </CardHeader>
+
+              <CardContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor={`answer-${q.id}`} className="text-xs font-semibold text-neutral-700">
+                      你的回答（填写您的真实业务细节、数据或做法）
+                    </Label>
+                    {!q.userAnswer && q.generatedBullet && (
+                      <button
+                        type="button"
+                        onClick={() => updateFollowUpAnswer(q.id, q.generatedBullet)}
+                        className="text-[11px] text-blue-600 hover:text-blue-700 font-medium hover:underline flex items-center gap-1"
+                      >
+                        <Wand2 className="h-3 w-3" />
+                        填入参考范例以作修改
+                      </button>
+                    )}
+                  </div>
+                  <Textarea
+                    id={`answer-${q.id}`}
+                    className="min-h-[85px] text-sm focus-visible:ring-blue-500"
+                    placeholder="填写您的真实经历、数据与做法..."
+                    value={q.userAnswer}
+                    onChange={(e) => updateFollowUpAnswer(q.id, e.target.value)}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-2">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    disabled={!q.userAnswer.trim() || loadingId === q.id}
+                    onClick={() => handleGenerateBullet(q.id)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs"
+                  >
+                    {loadingId === q.id ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        正在根据您的回答定制生成...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3.5 w-3.5 text-amber-300 mr-1" />
+                        根据我的回答生成专属 Bullet
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Bullet Display Card with clear visual distinction */}
+                {q.generatedBullet && (
+                  <div
+                    className={`rounded-lg p-3.5 transition-all ${
+                      isCustom
+                        ? "border border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50/40 to-white shadow-2xs"
+                        : "border border-blue-200/90 bg-gradient-to-r from-blue-50/70 via-indigo-50/30 to-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                            isCustom
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                              : "bg-blue-100 text-blue-800 border border-blue-200"
+                          }`}
+                        >
+                          {isCustom ? "✨ 专属定制 Bullet" : "💡 AI 推荐参考 Bullet（范例）"}
+                        </span>
+                        <span className="text-[11px] text-neutral-400">
+                          {isCustom ? "已基于您的回答精炼合成" : "系统根据目标 JD 拟定的标准写作规范"}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-sm leading-relaxed font-medium text-neutral-800">
+                      {q.generatedBullet}
+                    </p>
+                  </div>
                 )}
-              </Button>
-              {q.generatedBullet && (
-                <div className="rounded-md border border-emerald-200 bg-emerald-50/50 p-3">
-                  <p className="mb-1 text-xs font-medium text-emerald-700">生成的 bullet</p>
-                  <p className="text-sm leading-relaxed text-neutral-700">{q.generatedBullet}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Apply bullets to resume */}

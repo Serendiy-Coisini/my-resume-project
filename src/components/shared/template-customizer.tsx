@@ -57,26 +57,57 @@ export function TemplateCustomizer() {
 
       <CardContent className="pt-1">
         {/* Theme Color */}
-        <div className="flex items-center gap-3">
-          <label className="text-[11px] font-semibold text-neutral-600 shrink-0">🎨 主题配色：</label>
-          <div className="flex flex-wrap gap-2.5 items-center">
-            {COLOR_PRESETS.map((preset) => {
-              const isSelected = (currentOptions.themeColor || "#1e3a8a") === preset.color;
-              return (
-                <button
-                  key={preset.color}
-                  type="button"
-                  title={preset.name}
-                  onClick={() => updateOption("themeColor", preset.color)}
-                  className={`relative shrink-0 rounded-full border border-black/10 transition-all flex items-center justify-center ${
-                    isSelected ? "ring-2 ring-blue-500 ring-offset-1 scale-110" : "hover:scale-105"
-                  }`}
-                  style={{ backgroundColor: preset.color, width: "24px", height: "24px" }}
-                >
-                  {isSelected && <Check className="h-3.5 w-3.5 text-white stroke-[3]" />}
-                </button>
-              );
-            })}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <label className="text-[11px] font-semibold text-neutral-600 shrink-0">🎨 主题配色：</label>
+            <div className="flex flex-wrap gap-2.5 items-center">
+              {COLOR_PRESETS.map((preset) => {
+                const isSelected = (currentOptions.themeColor || "#1e3a8a") === preset.color;
+                return (
+                  <button
+                    key={preset.color}
+                    type="button"
+                    title={preset.name}
+                    onClick={() => updateOption("themeColor", preset.color)}
+                    className={`relative shrink-0 rounded-full border border-black/10 transition-all flex items-center justify-center ${
+                      isSelected ? "ring-2 ring-blue-500 ring-offset-1 scale-110" : "hover:scale-105"
+                    }`}
+                    style={{ backgroundColor: preset.color, width: "24px", height: "24px" }}
+                  >
+                    {isSelected && <Check className="h-3.5 w-3.5 text-white stroke-[3]" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Photo Shape Selector */}
+          <div className="flex items-center gap-2">
+            <label className="text-[11px] font-semibold text-neutral-600 shrink-0">📷 照片框形状：</label>
+            <div className="flex items-center gap-1.5 bg-white p-0.5 rounded-lg border border-neutral-200 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => updateOption("avatarShape", "rectangle")}
+                className={`px-2.5 py-1 rounded text-[11px] font-medium transition-all ${
+                  (currentOptions.avatarShape || "rectangle") === "rectangle"
+                    ? "bg-blue-600 text-white font-bold shadow-2xs"
+                    : "text-neutral-600 hover:bg-neutral-100"
+                }`}
+              >
+                🖼️ 1寸/2寸 矩形相片 (推荐)
+              </button>
+              <button
+                type="button"
+                onClick={() => updateOption("avatarShape", "circle")}
+                className={`px-2.5 py-1 rounded text-[11px] font-medium transition-all ${
+                  currentOptions.avatarShape === "circle"
+                    ? "bg-blue-600 text-white font-bold shadow-2xs"
+                    : "text-neutral-600 hover:bg-neutral-100"
+                }`}
+              >
+                ⭕ 圆形相框
+              </button>
+            </div>
           </div>
         </div>
       </CardContent>

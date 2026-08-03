@@ -16,14 +16,16 @@ import {
 import { EmptyState, SectionTitle } from "@/components/shared/ui-helpers";
 import { useResumeStore } from "@/store/resume-store";
 import { regenerateOptimizedItems, STYLE_LABELS } from "@/services/ai/resumeAgent";
+import { updateFinalResumeWithOptimizedItems } from "@/lib/ai/prompts";
 import type { OptimizeStyle } from "@/types/resume";
 import { cn } from "@/lib/utils";
 
-const STYLE_OPTIONS: { value: OptimizeStyle; label: string }[] = [
-  { value: "concise", label: "更简洁" },
-  { value: "reduce-exaggeration", label: "降低夸张" },
-  { value: "ai-product", label: "更偏 AI 产品" },
-  { value: "tob-saas", label: "更偏 ToB SaaS" },
+const STYLE_OPTIONS: { value: OptimizeStyle; label: string; desc: string }[] = [
+  { value: "concise", label: "标准精炼", desc: "STAR 法则，结构表达精炼" },
+  { value: "data-driven", label: "突出数据量化", desc: "强化指标、转化率与成果数据" },
+  { value: "leadership", label: "强化主导力", desc: "突显主导、架构与核心贡献" },
+  { value: "reduce-exaggeration", label: "务实保真", desc: "去除夸大表达，防面试追问失误" },
+  { value: "jd-matched", label: "深度贴合 JD", desc: "高度嵌入目标岗位核心关键词" },
 ];
 
 export function OptimizeStep() {
@@ -53,8 +55,15 @@ export function OptimizeStep() {
     setRegenerating(true);
     setOptimizeError(null);
     try {
-      const items = await regenerateOptimizedItems(userInput, style);
-      setAnalysisResult({ ...analysisResult, optimizedItems: items });
+      const { optimizedItems: items, finalResume: newFinalResume } = await regenerateOptimizedItems(userInput, style);
+      const updatedFinalResume =
+        newFinalResume ||
+        updateFinalResumeWithOptimizedItems(analysisResult.finalResume, items);
+      setAnalysisResult({
+        ...analysisResult,
+        optimizedItems: items,
+        finalResume: updatedFinalResume,
+      });
     } catch (error) {
       setOptimizeError(error instanceof Error ? error.message : "优化生成失败");
     } finally {
@@ -71,21 +80,49 @@ export function OptimizeStep() {
         description="对照展示修改前/后的表达，附修改理由与风险提示"
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <span className="text-xs text-neutral-500">优化风格：</span>
-        {STYLE_OPTIONS.map((opt) => (
-          <Button
-            key={opt.value}
-            variant={optimizeStyle === opt.value ? "default" : "outline"}
-            size="sm"
-            disabled={regenerating}
-            onClick={() => handleStyleChange(opt.value)}
-            className={cn("h-7 text-xs")}
-          >
-            {opt.label}
-          </Button>
-        ))}
-        {regenerating && <Loader2 className="h-4 w-4 animate-spin text-neutral-400" />}
+      <div className="mb-6 rounded-xl border border-neutral-200/80 bg-neutral-50/60 p-3.5 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-neutral-800 flex items-center gap-1.5">
+            <span>选择定制改写风格</span>
+            <span className="text-[11px] font-normal text-neutral-500">（点击实时重构 Bullet Points）</span>
+          </span>
+          {regenerating && (
+            <span className="flex items-center gap-1 text-xs text-blue-600 font-medium animate-pulse">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              正在按新风格改写简历中...
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {STYLE_OPTIONS.map((opt) => {
+            const isSelected = optimizeStyle === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                disabled={regenerating}
+                onClick={() => handleStyleChange(opt.value)}
+                className={cn(
+                  "flex flex-col items-start justify-center rounded-lg p-2.5 text-left transition-all cursor-pointer border",
+                  isSelected
+                    ? "bg-blue-600 text-white border-blue-600 shadow-sm ring-2 ring-blue-500/20"
+                    : "bg-white text-neutral-700 border-neutral-200 hover:border-neutral-300 hover:bg-neutral-100/60",
+                  regenerating && "opacity-60 cursor-not-allowed"
+                )}
+              >
+                <span className="text-xs font-semibold">{opt.label}</span>
+                <span
+                  className={cn(
+                    "text-[10px] mt-0.5 line-clamp-1",
+                    isSelected ? "text-blue-100" : "text-neutral-400"
+                  )}
+                >
+                  {opt.desc}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {optimizeError && (

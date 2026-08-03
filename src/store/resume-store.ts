@@ -45,6 +45,7 @@ interface ResumeStore {
   showPageBreakGuide: boolean;
   customTemplateHTML: string;
   copied: boolean;
+  maxReachedStepIndex: number;
 
   setUserInput: (input: Partial<UserInput>) => void;
   setEnablePIIMasking: (enabled: boolean) => void;
@@ -92,7 +93,7 @@ export const useResumeStore = create<ResumeStore>()(
       analysisResult: null,
       analysisError: null,
       aiMode: null,
-      optimizeStyle: "ai-product" as OptimizeStyle,
+      optimizeStyle: "concise" as OptimizeStyle,
       selectedTemplate: "modern-sidebar" as import("@/types/resume").TemplateId,
       templateOptions: {
         themeColor: "#1e3a8a",
@@ -100,6 +101,7 @@ export const useResumeStore = create<ResumeStore>()(
       showPageBreakGuide: false,
       customTemplateHTML: DEFAULT_CUSTOM_TEMPLATE_HTML,
       copied: false,
+      maxReachedStepIndex: 0,
 
       setUserInput: (input) =>
         set((state) => ({
@@ -182,9 +184,19 @@ Axure · Figma · Python (数据分析) · SQL · Prompt Optimization · LangCha
           },
         }),
 
-      setCurrentStep: (step) => set({ currentStep: step }),
+      setCurrentStep: (step) => {
+        const idx = STEPS.indexOf(step);
+        set((state) => ({
+          currentStep: step,
+          maxReachedStepIndex: idx >= 0 ? Math.max(state.maxReachedStepIndex, idx) : state.maxReachedStepIndex,
+        }));
+      },
 
-      setAnalyzing: (analyzing) => set({ isAnalyzing: analyzing }),
+      setAnalyzing: (analyzing) =>
+        set((state) => ({
+          isAnalyzing: analyzing,
+          ...(analyzing && state.currentStep === "input" ? { maxReachedStepIndex: 0, analysisResult: null } : {}),
+        })),
 
       setAnalysisResult: (result) => set({ analysisResult: result, analysisError: null }),
 
@@ -225,16 +237,26 @@ Axure · Figma · Python (数据分析) · SQL · Prompt Optimization · LangCha
         }),
 
       getStepStatus: (stepId: StepId) => {
-        const { currentStep, analysisResult } = get();
+        const { currentStep, analysisResult, maxReachedStepIndex, isAnalyzing } = get();
+        const stepIdx = STEPS.indexOf(stepId);
+
         if (stepId === currentStep) return "active";
 
-        const currentIdx = STEPS.indexOf(currentStep);
-        const targetIdx = STEPS.indexOf(stepId);
+        // While AI model is actively analyzing, lock all other steps
+        if (isAnalyzing && stepId !== "input") {
+          return "disabled";
+        }
 
-        if (targetIdx === 0) return "completed";
-        if (!analysisResult) return "disabled";
+        if (!analysisResult && stepIdx > 0) {
+          return "disabled";
+        }
 
-        return targetIdx < currentIdx ? "completed" : "pending";
+        // Sequential step locking: user cannot jump past maxReachedStepIndex + 1
+        if (stepIdx > maxReachedStepIndex + 1) {
+          return "disabled";
+        }
+
+        return stepIdx <= maxReachedStepIndex ? "completed" : "pending";
       },
 
       setCopied: (copied) => set({ copied }),
@@ -247,17 +269,20 @@ Axure · Figma · Python (数据分析) · SQL · Prompt Optimization · LangCha
           analysisStage: null,
           analysisResult: null,
           analysisError: null,
-          optimizeStyle: "ai-product" as OptimizeStyle,
+          optimizeStyle: "concise" as OptimizeStyle,
           selectedTemplate: "classic" as import("@/types/resume").TemplateId,
           customTemplateHTML: DEFAULT_CUSTOM_TEMPLATE_HTML,
           copied: false,
+          maxReachedStepIndex: 0,
         }),
 
       goToNextStep: () => {
-        const { currentStep } = get();
+        const { currentStep, maxReachedStepIndex } = get();
         const idx = STEPS.indexOf(currentStep);
         if (idx >= 0 && idx < STEPS.length - 1) {
-          set({ currentStep: STEPS[idx + 1] });
+          const nextStep = STEPS[idx + 1];
+          const newMax = Math.max(maxReachedStepIndex, idx + 1);
+          set({ currentStep: nextStep, maxReachedStepIndex: newMax });
         }
       },
 
@@ -277,6 +302,7 @@ Axure · Figma · Python (数据分析) · SQL · Prompt Optimization · LangCha
         currentStep: state.currentStep,
         analysisResult: state.analysisResult,
         optimizeStyle: state.optimizeStyle,
+        maxReachedStepIndex: state.maxReachedStepIndex,
       }),
     }
   )

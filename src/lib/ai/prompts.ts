@@ -287,6 +287,10 @@ ${coreSummary ? `【前序分析摘要】\n${coreSummary}\n` : ""}
 export function buildOptimizeUserPrompt(input: UserInput, style: OptimizeStyle): string {
   return `请基于以下材料，按「${STYLE_LABELS[style]}」风格重新生成 optimizedItems（至少 5 条）。
 
+【关键规则】：
+1. before 字段必须严格保持为用户原简历中的真实原始文本表达（原简历表达绝对保持不变）。
+2. 仅针对 after、reason 和 riskWarning 字段按照「${STYLE_LABELS[style]}」风格进行重构与解析。
+
 <user_input>
 <target_role>${sanitizeUserText(input.targetRole, INPUT_MAX_LENGTHS.short)}</target_role>
 <job_description>
@@ -399,23 +403,29 @@ ${bulletBlock}
 const EVIDENCE_STRENGTHS: EvidenceStrength[] = ["strong", "medium", "weak", "none"];
 
 export function buildExtractTemplatePrompt(rawContent: string): string {
-  return `请根据以下简历文本或排版结构，分析其布局风格（如：双栏/单栏/Banner/卡片/时间轴等）、配色 scheme 与字体排版，并将其转换为一套带有美观 CSS 样式的 HTML 简历模板。
+  return `请根据以下简历文本或排版结构，深度识别并提取其真实视觉布局风格（例如：单栏极简居中、顶部 Banner 商务范、时间轴极客型、卡片流切块、左右双栏等）、配色方案与字体层级，并生成一套完整的 HTML/CSS 简历模板。
 
-要求：
+特别识别规则：
+- 必须根据传入文本/文档的实际排版特征生成对应布局（不要一律生成双栏！如输入为单栏结构，则生成单栏 HTML；如为顶部 Banner，则生成 Header Banner 结构；如为卡片流，则生成卡片结构；如为侧边栏，则生成 Flex 侧边栏双栏结构）。
+- 为便于后续布局识别与积木转换，请在 HTML 外层容器或 CSS 类名中体现布局特征（例如包含 single-column / corporate-banner / timeline-tech / grid-cards / modern-sidebar 等标记类名）。
+
+占位符替换要求：
 1. 包含完整的 <style> 标签和美观、现代的 CSS 样式。
-2. 将简历中的具体文本替换为以下占位符：
+2. 将简历中的具体内容替换为以下标准占位符：
    - 姓名：{{姓名}}
+   - 个人照片/头像：{{头像}}
    - 邮箱：{{邮箱}}
    - 电话：{{电话}}
    - 城市：{{城市}}
+   - 学校：{{学校}}
    - 求职意向：{{求职意向}}
-   - 职业摘要：{{职业摘要}}
+   - 职业摘要/自我评价：{{职业摘要}}
    - 核心能力：{{核心能力}}
-   - 工作经历：{{工作经历}}
+   - 工作/校园经历：{{工作经历}}
    - 项目经历：{{项目经历}}
    - 技能工具：{{技能工具}}
    - 教育背景：{{教育背景}}
-3. 确保样式包含良好的边距、行高、颜色层次和打印适配。
+3. 保证 CSS 具备正确的边距、A4 打印自适应与专业色调。
 
 <resume_content>
 ${sanitizeUserText(rawContent, 10000)}
@@ -533,4 +543,81 @@ export function normalizeOptimizedItems(
     reason: item.reason ?? "",
     riskWarning: item.riskWarning ?? "",
   }));
+}
+
+export function updateFinalResumeWithOptimizedItems(
+  finalResume: AnalysisResult["finalResume"],
+  optimizedItems: AnalysisResult["optimizedItems"]
+): AnalysisResult["finalResume"] {
+  if (!finalResume || !optimizedItems || optimizedItems.length === 0) {
+    return finalResume;
+  }
+
+  const updated: AnalysisResult["finalResume"] = JSON.parse(JSON.stringify(finalResume));
+
+  // 1. Update summary if an item corresponds to summary
+  const summaryItem = optimizedItems.find(
+    (item) => item.section.includes("职业摘要") || item.section.includes("个人优势") || item.section.includes("总结")
+  );
+  if (summaryItem && summaryItem.after) {
+    updated.summary = summaryItem.after;
+  }
+
+  // 2. Build map of before -> after for replacing bullet points
+  const replacementMap = new Map<string, string>();
+  optimizedItems.forEach((item) => {
+    if (item.before && item.after && item.before !== "（原简历无相关描述）") {
+      replacementMap.set(item.before.trim(), item.after.trim());
+    }
+  });
+
+  // 3. Update workExperience bullets
+  if (updated.workExperience && Array.isArray(updated.workExperience)) {
+    updated.workExperience = updated.workExperience.map((work) => {
+      const newBullets = work.bullets.map((bullet) => {
+        const trimmed = bullet.trim();
+        if (replacementMap.has(trimmed)) {
+          return replacementMap.get(trimmed)!;
+        }
+        for (const item of optimizedItems) {
+          if (
+            item.before &&
+            item.after &&
+            item.before !== "（原简历无相关描述）" &&
+            (trimmed.includes(item.before.slice(0, 10)) || item.before.includes(trimmed.slice(0, 10)))
+          ) {
+            return item.after;
+          }
+        }
+        return bullet;
+      });
+      return { ...work, bullets: newBullets };
+    });
+  }
+
+  // 4. Update projectExperience bullets
+  if (updated.projectExperience && Array.isArray(updated.projectExperience)) {
+    updated.projectExperience = updated.projectExperience.map((proj) => {
+      const newBullets = proj.bullets.map((bullet) => {
+        const trimmed = bullet.trim();
+        if (replacementMap.has(trimmed)) {
+          return replacementMap.get(trimmed)!;
+        }
+        for (const item of optimizedItems) {
+          if (
+            item.before &&
+            item.after &&
+            item.before !== "（原简历无相关描述）" &&
+            (trimmed.includes(item.before.slice(0, 10)) || item.before.includes(trimmed.slice(0, 10)))
+          ) {
+            return item.after;
+          }
+        }
+        return bullet;
+      });
+      return { ...proj, bullets: newBullets };
+    });
+  }
+
+  return updated;
 }

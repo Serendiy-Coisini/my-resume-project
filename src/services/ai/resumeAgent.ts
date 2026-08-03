@@ -176,9 +176,12 @@ export async function runResumeAnalysisStream(
 export async function regenerateOptimizedItems(
   input: UserInput,
   style: OptimizeStyle
-): Promise<AnalysisResult["optimizedItems"]> {
+): Promise<{
+  optimizedItems: AnalysisResult["optimizedItems"];
+  finalResume?: AnalysisResult["finalResume"];
+}> {
   const data = await postJSON<OptimizeResponseBody>("/api/optimize", { input, style });
-  return data.optimizedItems;
+  return { optimizedItems: data.optimizedItems, finalResume: data.finalResume };
 }
 
 export async function generateFollowUpBullet(

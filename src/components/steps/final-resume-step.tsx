@@ -10,7 +10,7 @@ import { useResumeStore } from "@/store/resume-store";
 export function FinalResumeStep() {
   const { analysisResult, selectedTemplate, setCurrentStep } = useResumeStore();
 
-  if (!analysisResult) {
+  if (!analysisResult || !analysisResult.finalResume) {
     return (
       <EmptyState
         message="请先完成输入材料并开始分析"

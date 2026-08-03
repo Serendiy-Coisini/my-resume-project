@@ -75,7 +75,7 @@ export function StepSidebar({ onStepClick }: { onStepClick?: () => void }) {
           );
         })}
       </nav>
-      {analysisResult && (
+      {analysisResult?.diagnosis?.overallScore != null && (
         <div className="border-t border-neutral-200 p-3">
           <p className="text-xs text-neutral-400">整体匹配度</p>
           <p className="text-2xl font-semibold tabular-nums text-neutral-900">

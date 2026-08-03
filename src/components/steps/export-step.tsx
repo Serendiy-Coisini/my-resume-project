@@ -305,21 +305,21 @@ export function ExportStep() {
           <div className="rounded-md border border-neutral-100 p-3">
             <p className="text-xs text-neutral-400">匹配度评分</p>
             <p className="text-2xl font-semibold tabular-nums">
-              {analysisResult.diagnosis.overallScore}
+              {analysisResult.diagnosis?.overallScore ?? 0}
               <span className="text-sm font-normal text-neutral-400">/100</span>
             </p>
           </div>
           <div className="rounded-md border border-neutral-100 p-3">
             <p className="text-xs text-neutral-400">匹配项分析</p>
             <p className="text-2xl font-semibold tabular-nums">
-              {analysisResult.matchItems.length}
+              {analysisResult.matchItems?.length ?? 0}
               <span className="text-sm font-normal text-neutral-400"> 条</span>
             </p>
           </div>
           <div className="rounded-md border border-neutral-100 p-3">
             <p className="text-xs text-neutral-400">优化修改</p>
             <p className="text-2xl font-semibold tabular-nums">
-              {analysisResult.optimizedItems.length}
+              {analysisResult.optimizedItems?.length ?? 0}
               <span className="text-sm font-normal text-neutral-400"> 处</span>
             </p>
           </div>

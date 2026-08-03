@@ -26,7 +26,7 @@ export function FollowUpStep() {
   const [applied, setApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!analysisResult) {
+  if (!analysisResult || !analysisResult.followUpQuestions) {
     return (
       <EmptyState
         message="请先完成输入材料并开始分析"

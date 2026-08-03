@@ -38,7 +38,7 @@ export function OptimizeStep() {
   const [regenerating, setRegenerating] = useState(false);
   const [optimizeError, setOptimizeError] = useState<string | null>(null);
 
-  if (!analysisResult) {
+  if (!analysisResult || !analysisResult.optimizedItems) {
     return (
       <EmptyState
         message="请先完成输入材料并开始分析"

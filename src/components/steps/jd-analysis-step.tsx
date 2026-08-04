@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -16,12 +16,12 @@ import {
   ImportanceBadge,
   KeywordTags,
   ListSection,
-  SectionTitle,
 } from "@/components/shared/ui-helpers";
 import { useResumeStore } from "@/store/resume-store";
+import { exportJDAnalysisAsPDF, exportFullAnalysisAsPDF } from "@/lib/export-analysis-pdf";
 
 export function JDAnalysisStep() {
-  const { analysisResult, setCurrentStep } = useResumeStore();
+  const { userInput, analysisResult, setCurrentStep } = useResumeStore();
 
   if (!analysisResult || !analysisResult.jdAnalysis) {
     return (
@@ -37,10 +37,34 @@ export function JDAnalysisStep() {
 
   return (
     <div>
-      <SectionTitle
-        title="JD 解析"
-        description="从目标岗位描述中提取职责、要求、关键词与理想候选人画像"
-      />
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight text-neutral-900">JD 解析</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            从目标岗位描述中提取职责、要求、关键词与理想候选人画像
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportJDAnalysisAsPDF(userInput, jdAnalysis)}
+            className="text-xs text-blue-700 border-blue-200 bg-blue-50/60 hover:bg-blue-100"
+          >
+            <Download className="h-3.5 w-3.5 mr-1 text-blue-600" />
+            导出 JD 解析 PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportFullAnalysisAsPDF(userInput, analysisResult)}
+            className="text-xs text-indigo-700 border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100 font-medium"
+          >
+            <Printer className="h-3.5 w-3.5 mr-1 text-indigo-600" />
+            导出全景综合报告 PDF
+          </Button>
+        </div>
+      </div>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <Card>

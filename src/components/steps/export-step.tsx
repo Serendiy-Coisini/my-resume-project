@@ -38,6 +38,7 @@ import { useLegoDesignerStore } from "@/store/lego-designer-store";
 import type { TemplateId } from "@/types/resume";
 import { useResumeStore } from "@/store/resume-store";
 import { copyToClipboard, dataUrlToBlobUrl, exportResumeAsPDF, exportResumeAsWord, formatResumeAsText } from "@/lib/utils";
+import { exportJDAnalysisAsPDF, exportInterviewPrepAsPDF, exportFullAnalysisAsPDF } from "@/lib/export-analysis-pdf";
 
 export function ExportStep() {
   const {
@@ -526,31 +527,73 @@ export function ExportStep() {
         <ResumeTemplateView resume={finalResume} templateId={selectedTemplate} />
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm">完整分析摘要</CardTitle>
+      <Card className="border-indigo-100 bg-gradient-to-r from-indigo-50/40 via-white to-blue-50/40">
+        <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle className="text-sm text-indigo-950 font-bold">完整岗位分析与面试报告导出</CardTitle>
+            <CardDescription className="text-xs text-neutral-500 mt-0.5">
+              一键生成高品质 A4 PDF 报告文件，方便存档与打印查看
+            </CardDescription>
+          </div>
+          <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[11px]">
+            PDF 打印防断页
+          </Badge>
         </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-md border border-neutral-100 p-3">
-            <p className="text-xs text-neutral-400">匹配度评分</p>
-            <p className="text-2xl font-semibold tabular-nums">
-              {analysisResult.diagnosis?.overallScore ?? 0}
-              <span className="text-sm font-normal text-neutral-400">/100</span>
-            </p>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-md border border-indigo-100 bg-white/80 p-3 shadow-2xs">
+              <p className="text-xs text-neutral-500">匹配度评分</p>
+              <p className="text-2xl font-bold tabular-nums text-indigo-600">
+                {analysisResult.diagnosis?.overallScore ?? 0}
+                <span className="text-sm font-normal text-neutral-400">/100</span>
+              </p>
+            </div>
+            <div className="rounded-md border border-indigo-100 bg-white/80 p-3 shadow-2xs">
+              <p className="text-xs text-neutral-500">人岗匹配对比项</p>
+              <p className="text-2xl font-bold tabular-nums text-blue-600">
+                {analysisResult.matchItems?.length ?? 0}
+                <span className="text-sm font-normal text-neutral-400"> 条</span>
+              </p>
+            </div>
+            <div className="rounded-md border border-indigo-100 bg-white/80 p-3 shadow-2xs">
+              <p className="text-xs text-neutral-500">面试追问预案</p>
+              <p className="text-2xl font-bold tabular-nums text-purple-600">
+                {analysisResult.interviewPrep?.likelyQuestions?.length ?? 0}
+                <span className="text-sm font-normal text-neutral-400"> 题</span>
+              </p>
+            </div>
           </div>
-          <div className="rounded-md border border-neutral-100 p-3">
-            <p className="text-xs text-neutral-400">匹配项分析</p>
-            <p className="text-2xl font-semibold tabular-nums">
-              {analysisResult.matchItems?.length ?? 0}
-              <span className="text-sm font-normal text-neutral-400"> 条</span>
-            </p>
-          </div>
-          <div className="rounded-md border border-neutral-100 p-3">
-            <p className="text-xs text-neutral-400">优化修改</p>
-            <p className="text-2xl font-semibold tabular-nums">
-              {analysisResult.optimizedItems?.length ?? 0}
-              <span className="text-sm font-normal text-neutral-400"> 处</span>
-            </p>
+
+          <div className="pt-2 border-t border-indigo-100/80 flex flex-wrap gap-2.5">
+            <Button
+              onClick={() => exportFullAnalysisAsPDF(userInput, analysisResult)}
+              className="flex-1 min-w-[240px] bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-md shadow-indigo-500/20 font-bold text-xs py-5"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              📄 导出全景综合报告 PDF（含 JD解析+诊断+匹配+面试准备）
+            </Button>
+            {analysisResult.jdAnalysis && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => exportJDAnalysisAsPDF(userInput, analysisResult.jdAnalysis)}
+                className="bg-white border-blue-200 text-blue-700 hover:bg-blue-50 text-xs"
+              >
+                <Download className="h-3.5 w-3.5 mr-1 text-blue-600" />
+                仅导出 JD 解析 PDF
+              </Button>
+            )}
+            {analysisResult.interviewPrep && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => exportInterviewPrepAsPDF(userInput, analysisResult.interviewPrep)}
+                className="bg-white border-purple-200 text-purple-700 hover:bg-purple-50 text-xs"
+              >
+                <Download className="h-3.5 w-3.5 mr-1 text-purple-600" />
+                仅导出 面试准备 PDF
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

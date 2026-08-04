@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,11 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { EmptyState, EvidenceBadge, SectionTitle } from "@/components/shared/ui-helpers";
+import { EmptyState, EvidenceBadge } from "@/components/shared/ui-helpers";
 import { useResumeStore } from "@/store/resume-store";
+import { exportFullAnalysisAsPDF } from "@/lib/export-analysis-pdf";
 
 export function MatchStep() {
-  const { analysisResult, setCurrentStep } = useResumeStore();
+  const { userInput, analysisResult, setCurrentStep } = useResumeStore();
 
   if (!analysisResult || !analysisResult.matchItems) {
     return (
@@ -32,10 +33,23 @@ export function MatchStep() {
 
   return (
     <div>
-      <SectionTitle
-        title="匹配分析"
-        description="逐条对比 JD 要求与简历证据，识别缺口与优化方向"
-      />
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight text-neutral-900">匹配分析</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            逐条对比 JD 要求与简历证据，识别缺口与优化方向
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => exportFullAnalysisAsPDF(userInput, analysisResult)}
+          className="text-xs text-indigo-700 border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100 font-medium"
+        >
+          <Printer className="h-3.5 w-3.5 mr-1 text-indigo-600" />
+          导出全景综合报告 PDF
+        </Button>
+      </div>
 
       <Card className="mb-6">
         <CardHeader className="pb-3">

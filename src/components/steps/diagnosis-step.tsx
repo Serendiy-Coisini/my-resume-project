@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -8,12 +8,12 @@ import {
   EmptyState,
   ListSection,
   ScoreRing,
-  SectionTitle,
 } from "@/components/shared/ui-helpers";
 import { useResumeStore } from "@/store/resume-store";
+import { exportFullAnalysisAsPDF } from "@/lib/export-analysis-pdf";
 
 export function DiagnosisStep() {
-  const { analysisResult, setCurrentStep } = useResumeStore();
+  const { userInput, analysisResult, setCurrentStep } = useResumeStore();
 
   if (!analysisResult || !analysisResult.diagnosis) {
     return (
@@ -29,10 +29,23 @@ export function DiagnosisStep() {
 
   return (
     <div>
-      <SectionTitle
-        title="简历诊断"
-        description="基于 JD 要求评估当前简历的匹配度与主要问题"
-      />
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight text-neutral-900">简历诊断</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            基于 JD 要求评估当前简历的匹配度与主要问题
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => exportFullAnalysisAsPDF(userInput, analysisResult)}
+          className="text-xs text-indigo-700 border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100 font-medium"
+        >
+          <Printer className="h-3.5 w-3.5 mr-1 text-indigo-600" />
+          导出全景综合报告 PDF
+        </Button>
+      </div>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-[160px_1fr]">
         <Card className="flex items-center justify-center py-6">

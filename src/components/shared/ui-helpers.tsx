@@ -19,12 +19,12 @@ export function EvidenceBadge({ strength }: { strength: EvidenceStrength }) {
 
 export function ImportanceBadge({ importance }: { importance: "high" | "medium" | "low" }) {
   const map = {
-    high: { label: "高", variant: "default" as const },
-    medium: { label: "中", variant: "secondary" as const },
-    low: { label: "低", variant: "outline" as const },
+    high: { label: "高", variant: "primary" as const, className: "bg-blue-50 text-blue-700 border-blue-200 font-semibold shadow-2xs" },
+    medium: { label: "中", variant: "warning" as const, className: "bg-amber-50 text-amber-700 border-amber-200 font-medium" },
+    low: { label: "低", variant: "secondary" as const, className: "bg-slate-100 text-slate-600 border-slate-200 font-normal" },
   };
-  const config = map[importance];
-  return <Badge variant={config.variant}>{config.label}</Badge>;
+  const config = map[importance] || map.high;
+  return <Badge variant={config.variant} className={config.className}>{config.label}</Badge>;
 }
 
 export function ScoreRing({ score, size = "lg" }: { score: number; size?: "sm" | "lg" }) {

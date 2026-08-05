@@ -39,6 +39,8 @@ import type { TemplateId } from "@/types/resume";
 import { useResumeStore } from "@/store/resume-store";
 import { copyToClipboard, dataUrlToBlobUrl, exportResumeAsPDF, exportResumeAsWord, formatResumeAsText } from "@/lib/utils";
 import { exportJDAnalysisAsPDF, exportInterviewPrepAsPDF, exportFullAnalysisAsPDF } from "@/lib/export-analysis-pdf";
+import { isForeignCompany } from "@/lib/company-config";
+import { getOrBuildEnglishResume } from "@/lib/english-resume-builder";
 
 export function ExportStep() {
   const {
@@ -58,6 +60,7 @@ export function ExportStep() {
   const [viewMode, setViewMode] = useState<"standard" | "compare" | "lego">("standard");
   const [compareLeftTab, setCompareLeftTab] = useState<"file" | "text">("file");
   const [isWideLayout, setIsWideLayout] = useState<boolean>(true);
+  const [activeLang, setActiveLang] = useState<"zh" | "en">("zh");
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   const pdfBlobUrl = useMemo(() => {
@@ -77,8 +80,14 @@ export function ExportStep() {
     );
   }
 
-  const { finalResume } = analysisResult;
-  const resumeText = formatResumeAsText(finalResume);
+  const { finalResume, englishResume } = analysisResult;
+  const hasEnglish = Boolean(englishResume);
+  const isForeign = isForeignCompany(userInput.companyType);
+
+  const currentResume = activeLang === "en"
+    ? (englishResume || getOrBuildEnglishResume(finalResume, userInput))
+    : finalResume;
+  const resumeText = formatResumeAsText(currentResume);
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -127,11 +136,11 @@ export function ExportStep() {
   };
 
   const handleExportWord = () => {
-    exportResumeAsWord(finalResume, selectedTemplate, customTemplateHTML, templateOptions);
+    exportResumeAsWord(currentResume, selectedTemplate, customTemplateHTML, templateOptions);
   };
 
   const handleExportPDF = () => {
-    exportResumeAsPDF(finalResume, selectedTemplate, customTemplateHTML, templateOptions);
+    exportResumeAsPDF(currentResume, selectedTemplate, customTemplateHTML, templateOptions);
   };
 
   const handleImportToLego = (tplId: TemplateId) => {
@@ -363,7 +372,7 @@ export function ExportStep() {
               </CardHeader>
               <CardContent className="flex-1 p-3 overflow-y-auto max-h-[900px] space-y-3">
                 <TemplateSelector onImportToLego={handleImportToLego} />
-                <ResumeTemplateView resume={finalResume} templateId={selectedTemplate} />
+                <ResumeTemplateView resume={currentResume} templateId={selectedTemplate} />
               </CardContent>
             </Card>
           </div>
@@ -524,7 +533,36 @@ export function ExportStep() {
           </div>
         </div>
 
-        <ResumeTemplateView resume={finalResume} templateId={selectedTemplate} />
+        {(hasEnglish || isForeign) && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            <div className="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setActiveLang("zh")}
+                className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
+                  activeLang === "zh"
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                🇨🇳 中文版简历
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveLang("en")}
+                className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
+                  activeLang === "en"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-blue-700 hover:bg-blue-50"
+                }`}
+              >
+                🇺🇸 English Resume (全英文版)
+              </button>
+            </div>
+            <span className="text-xs text-slate-500 font-medium">当前语言：{activeLang === "en" ? "English (全英文)" : "中文"}</span>
+          </div>
+        )}
+        <ResumeTemplateView resume={currentResume} templateId={selectedTemplate} />
       </div>
 
       <Card className="border-indigo-100 bg-gradient-to-r from-indigo-50/40 via-white to-blue-50/40">

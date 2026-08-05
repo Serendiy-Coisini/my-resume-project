@@ -74,8 +74,8 @@ interface ResumeStore {
 const defaultUserInput: UserInput = {
   targetRole: "",
   industry: "",
-  companyType: "中型公司",
-  jobStage: "社招-中级",
+  companyType: "中型企业 (100-499人 · C/D轮/拟上市)",
+  jobStage: "社招-中级 (3-5年工作经验 · 核心骨干)",
   highlightSkills: "",
   jobDescription: "",
   originalResume: "",
@@ -128,8 +128,8 @@ export const useResumeStore = create<ResumeStore>()(
           userInput: {
             targetRole: "AI 产品经理",
             industry: "企业服务 / SaaS",
-            companyType: "大厂",
-            jobStage: "社招-中级",
+            companyType: "头部大厂 (10000人以上 · 已上市)",
+            jobStage: "社招-中级 (3-5年工作经验 · 核心骨干)",
             highlightSkills: "AI 功能落地方案、提示词工程、数据驱动迭代",
             jobDescription: `岗位职责：
 1. 负责核心 AI 功能（智能问答、文档理解、工作流自动化）的产品规划与设计；

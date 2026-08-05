@@ -5,6 +5,8 @@ import type {
   OptimizeStyle,
   UserInput,
 } from "@/types/resume";
+import { getCompanyTypeOption, isForeignCompany } from "@/lib/company-config";
+import { getOrBuildEnglishResume } from "@/lib/english-resume-builder";
 
 const STYLE_LABELS: Record<OptimizeStyle, string> = {
   concise: "标准精炼 (STAR法则)",
@@ -16,7 +18,9 @@ const STYLE_LABELS: Record<OptimizeStyle, string> = {
   "tob-saas": "深度贴合目标 JD",
 };
 
-function buildJDAnalysis(_input: UserInput): AnalysisResult["jdAnalysis"] {
+function buildJDAnalysis(input: UserInput): AnalysisResult["jdAnalysis"] {
+  const companyOpt = getCompanyTypeOption(input.companyType);
+
   return {
     responsibilities: [
       "负责 AI 功能的产品规划与迭代（智能问答、文档理解、工作流自动化）",
@@ -33,11 +37,12 @@ function buildJDAnalysis(_input: UserInput): AnalysisResult["jdAnalysis"] {
       "本科及以上学历",
     ],
     implicitRequirements: [
+      `契合【${companyOpt.label} (${companyOpt.scale} · ${companyOpt.stage})】用人偏好：${companyOpt.aiFocus}`,
       "具备将传统 B 端系统经验迁移到 AI 场景的能力",
       "理解 LLM 能力边界，能设计合理的 AI 产品交互",
       "有数据驱动决策习惯，能量化 AI 功能效果",
       "对 AI 行业有持续学习意愿与基本认知",
-      "能在资源有限情况下推动 MVP 快速验证",
+      "能在目标企业资源约束下推动 MVP 快速验证与迭代",
     ],
     keywords: [
       "AI 产品经理",
@@ -54,7 +59,7 @@ function buildJDAnalysis(_input: UserInput): AnalysisResult["jdAnalysis"] {
       "效果评估",
     ],
     idealCandidate:
-      "具备 3-5 年 ToB 产品经验，有 ERP/WMS/数据报表等系统落地背景，近期主动学习 AI 并有小范围实践，能将业务抽象能力与 AI 能力结合，推动智能化功能从验证到规模化。",
+      `具备 3-5 年 ToB 产品经验，有 ERP/WMS/数据报表等系统落地背景，近期主动学习 AI 并有小范围实践。深度匹配【${companyOpt.label} (${companyOpt.scale} · ${companyOpt.stage})】的招募定位，能结合业务抽象能力与 AI 能力，推动智能化功能落地。`,
     coreCompetencies: [
       {
         name: "AI 产品规划",
@@ -521,6 +526,11 @@ function buildFinalResume(input: UserInput): AnalysisResult["finalResume"] {
   };
 }
 
+function buildEnglishResume(input: UserInput): AnalysisResult["finalResume"] {
+  const baseResume = buildFinalResume(input);
+  return getOrBuildEnglishResume(baseResume, input);
+}
+
 function buildInterviewPrep(): AnalysisResult["interviewPrep"] {
   return {
     likelyQuestions: [
@@ -616,6 +626,7 @@ export async function runMockResumeAnalysis(
   const optimizedItems = buildOptimizedItems(optimizeStyle);
   const baseFinalResume = buildFinalResume(input);
   const finalResume = updateFinalResumeWithOptimizedItems(baseFinalResume, optimizedItems);
+  const englishResume = isForeignCompany(input.companyType) ? buildEnglishResume(input) : undefined;
 
   return {
     jdAnalysis: buildJDAnalysis(input),
@@ -624,6 +635,7 @@ export async function runMockResumeAnalysis(
     followUpQuestions: buildFollowUpQuestions(),
     optimizedItems,
     finalResume,
+    englishResume,
     interviewPrep: buildInterviewPrep(),
   };
 }
@@ -658,10 +670,11 @@ export async function runMockResumeAnalysisStream(
   const optimizedItems = buildOptimizedItems(optimizeStyle);
   const baseFinalResume = buildFinalResume(input);
   const finalResume = updateFinalResumeWithOptimizedItems(baseFinalResume, optimizedItems);
+  const englishResume = isForeignCompany(input.companyType) ? buildEnglishResume(input) : undefined;
   onStageUpdate?.({
     stage: "optimize",
     status: "complete",
-    data: { optimizedItems, finalResume },
+    data: { optimizedItems, finalResume, englishResume },
   });
 
   onStageUpdate?.({ stage: "interview", status: "start" });

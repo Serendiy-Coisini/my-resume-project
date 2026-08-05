@@ -31,6 +31,8 @@ import { SectionTitle } from "@/components/shared/ui-helpers";
 import { runResumeAnalysisStream } from "@/services/ai/resumeAgent";
 import { useResumeStore } from "@/store/resume-store";
 import type { CompanyType, JobStage } from "@/types/resume";
+import { COMPANY_TYPE_OPTIONS, getCompanyTypeOption } from "@/lib/company-config";
+import { JOB_STAGE_OPTIONS, getJobStageOption } from "@/lib/job-stage-config";
 
 const STAGE_STEPS = [
   { id: "jd-analysis", name: "JD 拆解", label: "正在拆解岗位 JD 核心要求", startPct: 15, endPct: 35 },
@@ -590,41 +592,104 @@ export function InputStep() {
                 )}
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>公司类型</Label>
+            <div className="space-y-2 sm:col-span-2">
+              <div className="flex items-center justify-between">
+                <Label>目标公司规模与类型（模仿 BOSS 直聘）</Label>
+                <span className="text-xs text-neutral-400">选择目标企业规模以激活 AI 针对性模型调优</span>
+              </div>
               <Select
                 value={userInput.companyType}
                 onValueChange={(v) => setUserInput({ companyType: v as CompanyType })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="大厂">大厂</SelectItem>
-                  <SelectItem value="中型公司">中型公司</SelectItem>
-                  <SelectItem value="创业公司">创业公司</SelectItem>
-                  <SelectItem value="外企">外企</SelectItem>
-                  <SelectItem value="国企">国企</SelectItem>
+                  {COMPANY_TYPE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      <div className="flex items-center justify-between gap-2 w-full py-0.5">
+                        <span className="font-medium text-neutral-900">{opt.label}</span>
+                        <span className="text-xs text-neutral-500 font-mono">
+                          ({opt.scale} · {opt.stage})
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+
+              {(() => {
+                const opt = getCompanyTypeOption(userInput.companyType);
+                return (
+                  <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50/60 p-3 text-xs text-blue-950 flex flex-col gap-1.5 transition-all shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 font-medium">
+                      <span className="flex items-center gap-1.5 text-blue-700">
+                        <Sparkles className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                        AI 调优策略：针对【{opt.label}】进行定制分析
+                      </span>
+                      <div className="flex items-center gap-1.5 text-[11px] shrink-0">
+                        <span className="bg-blue-100/90 px-2 py-0.5 rounded text-blue-800 font-semibold border border-blue-200">
+                          规模: {opt.scale}
+                        </span>
+                        <span className="bg-indigo-100/90 px-2 py-0.5 rounded text-indigo-800 font-semibold border border-indigo-200">
+                          阶段: {opt.stage}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-neutral-600 leading-relaxed text-[12px]">
+                      {opt.aiFocus}
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
-            <div className="space-y-2">
-              <Label>求职阶段</Label>
+            <div className="space-y-2 sm:col-span-2">
+              <div className="flex items-center justify-between">
+                <Label>求职阶段与经验定位（含实习/校招/社招/转型）</Label>
+                <span className="text-xs text-neutral-400">选择当前求职阶段以匹配正确的考核预期</span>
+              </div>
               <Select
                 value={userInput.jobStage}
                 onValueChange={(v) => setUserInput({ jobStage: v as JobStage })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="校招">校招</SelectItem>
-                  <SelectItem value="社招-初级">社招-初级</SelectItem>
-                  <SelectItem value="社招-中级">社招-中级</SelectItem>
-                  <SelectItem value="社招-高级">社招-高级</SelectItem>
-                  <SelectItem value="转行">转行</SelectItem>
+                  {JOB_STAGE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      <div className="flex items-center justify-between gap-2 w-full py-0.5">
+                        <span className="font-medium text-neutral-900">{opt.label}</span>
+                        <span className="text-xs text-neutral-500 font-mono">
+                          ({opt.experience})
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+
+              {(() => {
+                const opt = getJobStageOption(userInput.jobStage);
+                return (
+                  <div className="mt-2 rounded-lg border border-purple-100 bg-purple-50/60 p-3 text-xs text-purple-950 flex flex-col gap-1.5 transition-all shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 font-medium">
+                      <span className="flex items-center gap-1.5 text-purple-700">
+                        <Sparkles className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+                        AI 阶段侧重：针对【{opt.label}】量身评测
+                      </span>
+                      <div className="flex items-center gap-1.5 text-[11px] shrink-0">
+                        <span className="bg-purple-100/90 px-2 py-0.5 rounded text-purple-800 font-semibold border border-purple-200">
+                          人群: {opt.targetAudience}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-neutral-600 leading-relaxed text-[12px]">
+                      {opt.aiFocus}
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="highlightSkills">希望突出的能力</Label>

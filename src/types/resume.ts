@@ -17,9 +17,34 @@ export type StepStatus = "pending" | "active" | "completed" | "disabled";
 
 export type EvidenceStrength = "strong" | "medium" | "weak" | "none";
 
-export type JobStage = "校招" | "社招-初级" | "社招-中级" | "社招-高级" | "转行";
+export type JobStage =
+  | "在校实习 (日常实习/暑期实习 · 在校生)"
+  | "应届校招 (应届生/秋招/春招 · 0-1年经验)"
+  | "社招-初级 (1-3年工作经验 · 基础骨干)"
+  | "社招-中级 (3-5年工作经验 · 核心骨干)"
+  | "社招-高级/专家 (5-10年+经验 · 团队Lead/专家)"
+  | "跨界/转型 (零相关经验/转行突破)"
+  | "校招"
+  | "社招-初级"
+  | "社招-中级"
+  | "社招-高级"
+  | "转行"
+  | (string & {});
 
-export type CompanyType = "大厂" | "中型公司" | "创业公司" | "外企" | "国企";
+export type CompanyType =
+  | "头部大厂 (10000人以上 · 已上市)"
+  | "大型企业 (1000-9999人 · 已上市/成熟期)"
+  | "中型企业 (100-499人 · C/D轮/拟上市)"
+  | "成长型公司 (20-99人 · A/B轮)"
+  | "初创团队 (0-20人 · 未融资/天使轮)"
+  | "外企/跨国公司 (1000-9999人 · 外资/已上市)"
+  | "国企/事业单位 (10000人以上 · 国有体制)"
+  | "大厂"
+  | "中型公司"
+  | "创业公司"
+  | "外企"
+  | "国企"
+  | (string & {});
 
 export interface UserInput {
   targetRole: string;
@@ -154,6 +179,7 @@ export interface AnalysisResult {
   followUpQuestions: FollowUpQuestion[];
   optimizedItems: OptimizedItem[];
   finalResume: FinalResume;
+  englishResume?: FinalResume;
   interviewPrep: InterviewPrep;
 }
 

@@ -248,10 +248,44 @@ export function compileCustomTemplate(
   return compiled;
 }
 
+export function isEnglishResume(resume: Partial<FinalResume>): boolean {
+  const text = `${resume?.summary || ""} ${resume?.jobIntent || ""} ${(resume?.coreSkills || []).join(" ")}`;
+  if (!text.trim()) return false;
+  const chineseChars = text.match(/[\u4e00-\u9fa5]/g) || [];
+  return chineseChars.length < text.length * 0.15;
+}
+
+export function localizeTemplateSectionTitles(html: string): string {
+  return html
+    .replace(/职业摘要/g, "SUMMARY")
+    .replace(/核心能力矩阵/g, "CORE SKILLS & COMPETENCIES")
+    .replace(/核心能力与所获荣誉/g, "CORE SKILLS & HONORS")
+    .replace(/核心能力/g, "CORE COMPETENCIES")
+    .replace(/核心技能栈/g, "CORE SKILLS")
+    .replace(/核心技能/g, "CORE SKILLS")
+    .replace(/工作与校园经历/g, "WORK & CAMPUS EXPERIENCE")
+    .replace(/工作经历/g, "WORK EXPERIENCE")
+    .replace(/项目经历/g, "PROJECT EXPERIENCE")
+    .replace(/技能工具/g, "SKILLS & TOOLS")
+    .replace(/教育背景/g, "EDUCATION")
+    .replace(/基本信息/g, "PERSONAL DETAILS")
+    .replace(/自我评价/g, "SUMMARY");
+}
+
 /**
  * Renders HTML string for preview and PDF/Word export for chosen template ID.
  */
 export function renderTemplateHTML(
+  rawResume: FinalResume,
+  templateId: TemplateId,
+  customTemplateHTML?: string,
+  options: TemplateOptions = DEFAULT_TEMPLATE_OPTIONS
+): string {
+  const html = renderTemplateHTMLInternal(rawResume, templateId, customTemplateHTML, options);
+  return isEnglishResume(rawResume) ? localizeTemplateSectionTitles(html) : html;
+}
+
+function renderTemplateHTMLInternal(
   rawResume: FinalResume,
   templateId: TemplateId,
   customTemplateHTML?: string,

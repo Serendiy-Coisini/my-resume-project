@@ -56,7 +56,7 @@ function getCommonStyles(): string {
     <style>
       @page {
         size: A4;
-        margin: 0;
+        margin: 10mm 12mm 18mm 12mm;
       }
       * {
         box-sizing: border-box;
@@ -68,7 +68,7 @@ function getCommonStyles(): string {
         color: #1e293b;
         background-color: #ffffff;
         margin: 0;
-        padding: 12mm 15mm 15mm 15mm;
+        padding: 0;
         font-size: 13px;
         line-height: 1.6;
       }
@@ -349,17 +349,19 @@ function getCommonStyles(): string {
 
       .pdf-fixed-footer {
         position: fixed;
-        bottom: 5mm;
+        bottom: -14mm;
         left: 0;
         right: 0;
-        height: 20px;
+        height: 10mm;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 12px;
-        background: transparent;
+        background: #ffffff;
         font-size: 10px;
-        color: #64748b;
+        color: #94a3b8;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 3px;
         z-index: 9999;
         pointer-events: none;
       }

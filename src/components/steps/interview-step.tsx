@@ -1,11 +1,12 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Download, Printer } from "lucide-react";
+import { Building2, ChevronLeft, ChevronRight, Download, Printer, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState, ListSection } from "@/components/shared/ui-helpers";
 import { useResumeStore } from "@/store/resume-store";
 import { exportInterviewPrepAsPDF, exportFullAnalysisAsPDF } from "@/lib/export-analysis-pdf";
+import { getCompanyTypeOption } from "@/lib/company-config";
 
 export function InterviewStep() {
   const { userInput, analysisResult, setCurrentStep } = useResumeStore();
@@ -21,6 +22,7 @@ export function InterviewStep() {
   }
 
   const { interviewPrep } = analysisResult;
+  const companyOpt = getCompanyTypeOption(userInput.companyType);
 
   return (
     <div>
@@ -50,6 +52,31 @@ export function InterviewStep() {
             <Printer className="h-3.5 w-3.5 mr-1 text-indigo-600" />
             导出全景综合报告 PDF
           </Button>
+        </div>
+      </div>
+
+      {/* Target company context banner */}
+      <div className="mb-6 rounded-lg border border-purple-100 bg-purple-50/40 p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 bg-purple-100 text-purple-700 rounded-md shrink-0">
+            <Building2 className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 font-medium text-neutral-900">
+              <span>面试真题已被调优适配：{companyOpt.label}</span>
+              <span className="bg-purple-100 text-purple-800 text-[11px] px-2 py-0.5 rounded font-semibold">
+                规模: {companyOpt.scale}
+              </span>
+              <span className="bg-indigo-100 text-indigo-800 text-[11px] px-2 py-0.5 rounded font-semibold">
+                阶段: {companyOpt.stage}
+              </span>
+            </div>
+            <p className="text-neutral-500 mt-0.5">高频考题包含针对【{companyOpt.scale}】企业面试官考核偏好的动机与专业追问</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 text-purple-700 bg-white/80 px-2.5 py-1 rounded border border-purple-200/80 font-medium text-[11px]">
+          <Sparkles className="h-3 w-3 text-purple-600" />
+          BOSS 规格考题已生成
         </div>
       </div>
 

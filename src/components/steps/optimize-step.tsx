@@ -93,7 +93,7 @@ export function OptimizeStep() {
             </span>
           )}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
           {STYLE_OPTIONS.map((opt) => {
             const isSelected = optimizeStyle === opt.value;
             return (
@@ -131,7 +131,38 @@ export function OptimizeStep() {
         </div>
       )}
 
-      <Card className="mb-6">
+      {/* Mobile Card List View (hidden on sm+) */}
+      <div className="block sm:hidden space-y-3 mb-6">
+        {optimizedItems.map((item) => (
+          <Card key={item.id} className="p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
+              <span className="text-xs font-bold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200/60">
+                {item.section}
+              </span>
+              <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60">
+                {item.riskWarning || "防追问提示"}
+              </span>
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <div className="p-2 rounded bg-neutral-50 border border-neutral-200/60">
+                <span className="text-[10px] font-bold text-neutral-400 block mb-0.5">修改前：</span>
+                <span className="text-neutral-600 line-through decoration-neutral-400/70">{item.before}</span>
+              </div>
+              <div className="p-2 rounded bg-emerald-50/70 border border-emerald-200/70">
+                <span className="text-[10px] font-bold text-emerald-700 block mb-0.5">修改后：</span>
+                <span className="text-emerald-950 font-medium">{item.after}</span>
+              </div>
+            </div>
+            <div className="text-[11px] text-neutral-500 pt-1 border-t border-neutral-100">
+              <span className="font-medium text-neutral-700">修改理由：</span>
+              {item.reason}
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop Table View (hidden on mobile) */}
+      <Card className="hidden sm:block mb-6 overflow-hidden">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">
             修改对照表
@@ -140,7 +171,7 @@ export function OptimizeStep() {
             </Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-0 pb-2">
+        <CardContent className="p-0 pb-2 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

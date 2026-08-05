@@ -161,43 +161,43 @@ export function ExportStep() {
       />
 
       {/* Mode Switcher Tabs */}
-      <div className="mb-6 flex justify-center">
-        <div className="bg-slate-200/80 p-1 rounded-xl shadow-inner inline-flex border border-slate-300/60 flex-wrap justify-center gap-1">
+      <div className="mb-6 flex justify-center w-full">
+        <div className="bg-slate-200/80 p-1 rounded-xl shadow-inner flex border border-slate-300/60 w-full sm:w-auto justify-around sm:justify-center gap-1">
           <button
             type="button"
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 flex-1 sm:flex-initial ${
               viewMode === "standard"
                 ? "bg-white text-blue-600 shadow-md scale-[1.02]"
                 : "text-slate-600 hover:text-slate-900"
             }`}
             onClick={() => setViewMode("standard")}
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            标准模版预览导出
+            <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <span>标准预览</span>
           </button>
           <button
             type="button"
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 flex-1 sm:flex-initial ${
               viewMode === "compare"
                 ? "bg-blue-600 text-white shadow-md shadow-blue-500/30 scale-[1.02]"
                 : "text-slate-600 hover:text-slate-900"
             }`}
             onClick={() => setViewMode("compare")}
           >
-            <GitCompare className="w-3.5 h-3.5 text-emerald-300" />
-            ⚖️ 原简历 vs 最终简历 对照
+            <GitCompare className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
+            <span>前后对照</span>
           </button>
           <button
             type="button"
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 flex-1 sm:flex-initial ${
               viewMode === "lego"
                 ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30 scale-[1.02]"
                 : "text-slate-600 hover:text-slate-900"
             }`}
             onClick={() => setViewMode("lego")}
           >
-            <LayoutGrid className="w-3.5 h-3.5 text-emerald-400" />
-            🧱 积木自由排版设计器
+            <LayoutGrid className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span>积木排版</span>
           </button>
         </div>
       </div>

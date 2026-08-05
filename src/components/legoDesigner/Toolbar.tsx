@@ -100,73 +100,73 @@ export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScre
   };
 
   return (
-    <div className="h-14 bg-slate-900 border-b border-slate-800 text-slate-200 px-4 flex items-center justify-between select-none shrink-0">
+    <div className="min-h-12 bg-slate-900 border-b border-slate-800 text-slate-200 px-2 sm:px-4 flex items-center justify-between select-none shrink-0 overflow-x-auto no-scrollbar gap-2 py-1">
       {/* Left Title */}
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30">
-          <FileText className="w-4 h-4" />
+      <div className="flex items-center gap-2 shrink-0">
+        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30">
+          <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </div>
         <div>
-          <h2 className="text-sm font-bold text-white tracking-wide">积木简历排版设计器</h2>
-          <p className="text-[10px] text-slate-400">
+          <h2 className="text-xs sm:text-sm font-bold text-white tracking-wide whitespace-nowrap">积木排版</h2>
+          <p className="hidden md:block text-[10px] text-slate-400">
             全屏编辑 · 画布拖拽 · 撤销重做 · 像素级 PDF 导出
           </p>
         </div>
       </div>
 
       {/* Middle Controls */}
-      <div className="flex items-center gap-2 bg-slate-800/80 p-1 rounded-lg border border-slate-700/60">
+      <div className="flex items-center gap-1 sm:gap-2 bg-slate-800/80 p-1 rounded-lg border border-slate-700/60 shrink-0">
         {/* Undo / Redo */}
         <button
-          className="p-1.5 rounded hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-transparent text-slate-300 transition-colors"
+          className="p-1 sm:p-1.5 rounded hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-transparent text-slate-300 transition-colors"
           disabled={undoStack.length === 0}
           onClick={undo}
           title="撤销 (Ctrl+Z)"
         >
-          <Undo2 className="w-4 h-4" />
+          <Undo2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
         <button
-          className="p-1.5 rounded hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-transparent text-slate-300 transition-colors"
+          className="p-1 sm:p-1.5 rounded hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-transparent text-slate-300 transition-colors"
           disabled={redoStack.length === 0}
           onClick={redo}
           title="重做 (Ctrl+Y)"
         >
-          <Redo2 className="w-4 h-4" />
+          <Redo2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
 
-        <div className="w-px h-4 bg-slate-700 mx-1" />
+        <div className="w-px h-4 bg-slate-700 mx-0.5" />
 
         {/* Zoom */}
         <button
-          className="p-1.5 rounded hover:bg-slate-700 text-slate-300 transition-colors"
+          className="p-1 sm:p-1.5 rounded hover:bg-slate-700 text-slate-300 transition-colors"
           onClick={() => setScale((s) => Math.max(0.3, Number((s - 0.1).toFixed(1))))}
           title="缩小"
         >
-          <ZoomOut className="w-4 h-4" />
+          <ZoomOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
-        <span className="text-xs font-mono w-12 text-center text-slate-300">
+        <span className="text-[11px] sm:text-xs font-mono w-10 sm:w-12 text-center text-slate-300">
           {Math.round(scale * 100)}%
         </span>
         <button
-          className="p-1.5 rounded hover:bg-slate-700 text-slate-300 transition-colors"
+          className="p-1 sm:p-1.5 rounded hover:bg-slate-700 text-slate-300 transition-colors"
           onClick={() => setScale((s) => Math.min(1.5, Number((s + 0.1).toFixed(1))))}
           title="放大"
         >
-          <ZoomIn className="w-4 h-4" />
+          <ZoomIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
 
-        <div className="w-px h-4 bg-slate-700 mx-1" />
+        <div className="hidden sm:block w-px h-4 bg-slate-700 mx-1" />
 
         {/* Fit Presets */}
         <button
-          className="px-2 py-1 text-[11px] rounded hover:bg-slate-700 text-slate-300 transition-colors"
+          className="hidden sm:inline-block px-2 py-1 text-[11px] rounded hover:bg-slate-700 text-slate-300 transition-colors"
           onClick={handleFitPage}
           title="缩放以适合整页"
         >
           适合整页
         </button>
         <button
-          className="px-2 py-1 text-[11px] rounded hover:bg-slate-700 text-slate-300 transition-colors"
+          className="hidden sm:inline-block px-2 py-1 text-[11px] rounded hover:bg-slate-700 text-slate-300 transition-colors"
           onClick={handleFitWidth}
           title="缩放以适合宽度"
         >
@@ -175,7 +175,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScre
       </div>
 
       {/* Right Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         <input
           ref={jsonFileInputRef}
           type="file"
@@ -188,11 +188,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScre
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowTplMenu(!showTplMenu)}
-            className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-blue-500/20 border border-blue-400/30 transition-all cursor-pointer"
+            className="px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-md shadow-blue-500/20 border border-blue-400/30 transition-all cursor-pointer whitespace-nowrap"
             title="选择将任意已生成/选择的固定模板转换并导入到积木设计器自由微调"
           >
             <Download className="w-3.5 h-3.5 text-white" />
-            导入固定模板排版
+            <span className="hidden sm:inline">导入固定模板排版</span>
+            <span className="sm:hidden">导入模板</span>
             <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showTplMenu ? 'rotate-180' : ''}`} />
           </button>
 
@@ -254,7 +255,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScre
         </div>
 
         <button
-          className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-1 border border-slate-700 transition-all"
+          className="hidden sm:flex px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium items-center gap-1 border border-slate-700 transition-all"
           onClick={() => jsonFileInputRef.current?.click()}
           title="导入积木 JSON 配置"
         >
@@ -263,7 +264,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScre
         </button>
 
         <button
-          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-1.5 border border-slate-700 transition-all"
+          className="hidden md:flex px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium items-center gap-1.5 border border-slate-700 transition-all"
           onClick={onToggleFullScreen}
           title={isFullScreen ? '退出全屏' : '全屏沉浸式编辑'}
         >
@@ -281,7 +282,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScre
         </button>
 
         <button
-          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-1.5 border border-slate-700 transition-all"
+          className="hidden lg:flex px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium items-center gap-1.5 border border-slate-700 transition-all"
           onClick={handleReloadAiData}
           title="用当前的 AI 润色结果重新装填积木"
         >
@@ -290,11 +291,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScre
         </button>
 
         <button
-          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-blue-600/30 transition-all"
+          className="px-3 sm:px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-blue-600/30 transition-all whitespace-nowrap"
           onClick={printLegoCanvas}
         >
           <Printer className="w-3.5 h-3.5" />
-          导出积木 PDF
+          <span className="hidden sm:inline">导出积木 PDF</span>
+          <span className="sm:hidden">导出</span>
         </button>
       </div>
     </div>

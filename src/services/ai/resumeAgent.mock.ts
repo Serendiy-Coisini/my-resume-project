@@ -288,7 +288,6 @@ const ZHANG_MING_BULLETS = [
 function buildOptimizedItems(
   style: OptimizeStyle = "concise"
 ): AnalysisResult["optimizedItems"] {
-  const styleNote = STYLE_LABELS[style] || "标准精炼";
 
   if (style === "leadership") {
     return [

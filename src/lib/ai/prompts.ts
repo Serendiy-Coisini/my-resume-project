@@ -34,7 +34,7 @@ export function sanitizeUserText(text: string, maxLen: number): string {
   return text.trim().slice(0, maxLen);
 }
 
-const ANALYSIS_JSON_SCHEMA = `{
+export const ANALYSIS_JSON_SCHEMA = `{
   "jdAnalysis": {
     "responsibilities": string[],
     "hardRequirements": string[],
@@ -118,7 +118,7 @@ export const RESUME_AGENT_SYSTEM_PROMPT = `你是「简历专家」，一位 JD 
     - 跨界/转型：重点挖掘过往经历中的“可迁移能力”（如逻辑思维、项目协调、数据分析），引导用户用目标岗位的专业术语转化过往优势。
 13. 【外企全英文简历同步生成法则】：若 <company_type> 属于外企/跨国公司（包含“外企”、“跨国”或外资背景），必须在输出中同步提供专业全英文简历 englishResume 字段（遵循 FinalResume 数据结构）。英文简历需使用地道西方外企招聘规范，动词精炼有力（如 Spearheaded, Architected, Optimized），术语精准专业，便于外企 HR 与外籍面试官全英文筛查。`;
 
-const ANALYSIS_CORE_SCHEMA = `{
+export const ANALYSIS_CORE_SCHEMA = `{
   "jdAnalysis": {
     "responsibilities": string[],
     "hardRequirements": string[],
@@ -149,7 +149,7 @@ const ANALYSIS_CORE_SCHEMA = `{
   }]
 }`;
 
-const ANALYSIS_OUTPUT_SCHEMA = `{
+export const ANALYSIS_OUTPUT_SCHEMA = `{
   "optimizedItems": [{
     "id": string,
     "section": string,

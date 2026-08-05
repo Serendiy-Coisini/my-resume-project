@@ -932,8 +932,8 @@ export function InputStep() {
               )}
             </div>
 
-            <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-              <Button variant="outline" size="default" onClick={loadExampleData} disabled={isAnalyzing}>
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto justify-end">
+              <Button variant="outline" size="default" onClick={loadExampleData} disabled={isAnalyzing} className="w-full sm:w-auto justify-center">
                 <Wand2 className="h-4 w-4 text-neutral-600" />
                 使用示例数据
               </Button>
@@ -941,7 +941,7 @@ export function InputStep() {
                 size="default"
                 onClick={handleAnalyze}
                 disabled={!canAnalyze || isAnalyzing}
-                className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold shadow-md shadow-blue-500/20 px-6 py-2.5 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100"
+                className="w-full sm:w-auto justify-center bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold shadow-md shadow-blue-500/20 px-6 py-2.5 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100"
               >
                 {isAnalyzing ? (
                   <>

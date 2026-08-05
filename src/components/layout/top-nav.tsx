@@ -33,22 +33,28 @@ export function TopNav({ onMenuClick }: { onMenuClick?: () => void }) {
   };
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-4">
-      <div className="flex items-center gap-2.5">
+    <header className="flex h-12 shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-3 sm:px-4">
+      <div className="flex items-center gap-2 sm:gap-2.5">
         {onMenuClick && (
           <button
             type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100 md:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200/80 bg-neutral-50 text-neutral-700 hover:bg-neutral-100 active:scale-95 transition-all md:hidden"
             onClick={onMenuClick}
+            aria-label="打开菜单"
           >
-            <Menu className="h-4 w-4 text-neutral-600" />
+            <Menu className="h-4 w-4 text-neutral-700" />
           </button>
         )}
-        <div className="flex h-7 w-7 items-center justify-center rounded-md border border-neutral-200 bg-neutral-50">
-          <FileText className="h-3.5 w-3.5 text-neutral-700" />
+        <div className="flex h-7 w-7 items-center justify-center rounded-md border border-neutral-200 bg-blue-50/50 text-blue-600">
+          <FileText className="h-3.5 w-3.5" />
         </div>
-        <div>
+        <div className="flex items-center gap-2">
           <h1 className="text-sm font-semibold tracking-tight text-neutral-900">简历专家</h1>
+          {aiMode && (
+            <Badge variant={aiMode === "llm" ? "success" : "secondary"} className="text-[10px] py-0 px-1.5 font-normal sm:hidden">
+              {aiMode === "llm" ? "AI" : "Mock"}
+            </Badge>
+          )}
         </div>
         <span className="hidden rounded-md border border-neutral-200 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500 sm:inline">
           JD 定制简历优化 Agent
@@ -65,8 +71,8 @@ export function TopNav({ onMenuClick }: { onMenuClick?: () => void }) {
           基于目标岗位 JD · 诊断 · 匹配 · 优化 · 面试准备
         </p>
         {analysisResult && (
-          <Button variant="ghost" size="sm" className="h-7 text-xs text-neutral-500" onClick={handleReset}>
-            <RotateCcw className="h-3 w-3" />
+          <Button variant="ghost" size="sm" className="h-7 text-xs text-neutral-500 px-2" onClick={handleReset}>
+            <RotateCcw className="h-3 w-3 sm:mr-1" />
             <span className="hidden sm:inline">重新开始</span>
           </Button>
         )}

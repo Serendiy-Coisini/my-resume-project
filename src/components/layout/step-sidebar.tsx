@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Sparkles,
   Target,
+  X,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
@@ -30,7 +31,15 @@ const STEPS: { id: StepId; label: string; desc: string; icon: React.ElementType 
   { id: "export", label: "最终简历", desc: "预览与导出", icon: Download },
 ];
 
-export function StepSidebar({ onStepClick }: { onStepClick?: () => void }) {
+export function StepSidebar({
+  onStepClick,
+  isMobileDrawer,
+  onClose,
+}: {
+  onStepClick?: () => void;
+  isMobileDrawer?: boolean;
+  onClose?: () => void;
+}) {
   const { currentStep, setCurrentStep, getStepStatus, analysisResult } = useResumeStore();
 
   const completedCount = STEPS.filter((step) => {
@@ -41,7 +50,12 @@ export function StepSidebar({ onStepClick }: { onStepClick?: () => void }) {
   const progressPercent = Math.round((completedCount / STEPS.length) * 100);
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-neutral-200/80 bg-gradient-to-b from-neutral-50/60 via-white to-white">
+    <aside
+      className={cn(
+        "flex h-full flex-col border-r border-neutral-200/80 bg-gradient-to-b from-neutral-50/60 via-white to-white",
+        isMobileDrawer ? "w-full" : "w-60 shrink-0"
+      )}
+    >
       {/* Header with overall process progress */}
       <div className="border-b border-neutral-200/70 p-4 space-y-2.5">
         <div className="flex items-center justify-between">
@@ -49,9 +63,21 @@ export function StepSidebar({ onStepClick }: { onStepClick?: () => void }) {
             <Layers className="h-3.5 w-3.5 text-blue-600" />
             <span>分析流程</span>
           </div>
-          <span className="text-[11px] font-medium text-blue-700 bg-blue-50 border border-blue-200/60 px-2 py-0.5 rounded-full">
-            {completedCount}/{STEPS.length}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-medium text-blue-700 bg-blue-50 border border-blue-200/60 px-2 py-0.5 rounded-full">
+              {completedCount}/{STEPS.length}
+            </span>
+            {isMobileDrawer && onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-1 rounded-md text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
+                aria-label="关闭侧边栏"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
         <Progress value={progressPercent} className="h-1.5 bg-neutral-100" />
       </div>

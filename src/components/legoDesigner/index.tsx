@@ -6,6 +6,7 @@ import { RightSetter } from './RightSetter';
 import { useLegoDesignerStore } from '@/store/lego-designer-store';
 import { useResumeStore } from '@/store/resume-store';
 import { buildLegoSchemaFromResume } from '@/lib/lego-adapter';
+import { Layout, PlusCircle, Settings } from 'lucide-react';
 
 export const LegoDesigner: React.FC = () => {
   const { setSchema, setScale } = useLegoDesignerStore();
@@ -17,6 +18,9 @@ export const LegoDesigner: React.FC = () => {
   const [rightWidth, setRightWidth] = useState(260);
   const [rightCollapsed, setRightCollapsed] = useState(false);
 
+  // Mobile active tab view: 'canvas' | 'components' | 'settings'
+  const [mobileTab, setMobileTab] = useState<'canvas' | 'components' | 'settings'>('canvas');
+
   const [isResizingLeft, setIsResizingLeft] = useState(false);
   const [isResizingRight, setIsResizingRight] = useState(false);
 
@@ -27,20 +31,29 @@ export const LegoDesigner: React.FC = () => {
     const initialSchema = buildLegoSchemaFromResume(userInput, analysisResult, selectedTemplate, templateOptions, customTemplateHTML);
     setSchema(initialSchema, false);
 
-    // Compute optimal fit scale on mount
+    // Compute optimal fit scale on mount & window resize
     const updateAutoFitScale = () => {
       if (containerRef.current) {
-        const availableHeight = containerRef.current.clientHeight - 80;
-        if (availableHeight > 300) {
-          const fitScale = Math.max(0.45, Math.min(1.0, Number((availableHeight / 1180).toFixed(2))));
+        const isMobile = window.innerWidth < 768;
+        const availableHeight = containerRef.current.clientHeight - (isMobile ? 120 : 80);
+        const availableWidth = containerRef.current.clientWidth - (isMobile ? 24 : 40);
+        
+        if (availableHeight > 200 && availableWidth > 200) {
+          const fitScaleHeight = availableHeight / 1180;
+          const fitScaleWidth = availableWidth / 840;
+          const fitScale = Math.max(0.35, Math.min(1.0, Number((Math.min(fitScaleHeight, fitScaleWidth)).toFixed(2))));
           setScale(fitScale);
         }
       }
     };
 
     updateAutoFitScale();
-    const timer = setTimeout(updateAutoFitScale, 100);
-    return () => clearTimeout(timer);
+    window.addEventListener('resize', updateAutoFitScale);
+    const timer = setTimeout(updateAutoFitScale, 150);
+    return () => {
+      window.removeEventListener('resize', updateAutoFitScale);
+      clearTimeout(timer);
+    };
   }, [userInput, analysisResult, selectedTemplate, templateOptions, customTemplateHTML, setSchema, setScale]);
 
   // Handle Dragging Divider for Left Sidebar
@@ -85,7 +98,7 @@ export const LegoDesigner: React.FC = () => {
 
   const containerClasses = isFullScreen
     ? 'fixed inset-0 z-[1000] w-screen h-screen bg-slate-900 flex flex-col overflow-hidden select-none'
-    : 'w-full h-full bg-slate-100 flex flex-col rounded-xl overflow-hidden shadow-2xl border border-slate-300 select-none';
+    : 'w-full h-[720px] max-h-[85vh] bg-slate-100 flex flex-col rounded-xl overflow-hidden shadow-2xl border border-slate-300 select-none';
 
   return (
     <div ref={containerRef} className={containerClasses}>
@@ -94,41 +107,81 @@ export const LegoDesigner: React.FC = () => {
         onToggleFullScreen={() => setIsFullScreen(!isFullScreen)}
       />
 
+      {/* Mobile view panel switcher (md:hidden) */}
+      <div className="flex items-center justify-around bg-slate-800 border-b border-slate-700 px-2 py-1.5 text-xs md:hidden shrink-0">
+        <button
+          type="button"
+          onClick={() => setMobileTab('canvas')}
+          className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-all ${
+            mobileTab === 'canvas' ? 'bg-blue-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:bg-slate-700'
+          }`}
+        >
+          <Layout className="h-3.5 w-3.5" />
+          <span>画布预览</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('components')}
+          className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-all ${
+            mobileTab === 'components' ? 'bg-blue-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:bg-slate-700'
+          }`}
+        >
+          <PlusCircle className="h-3.5 w-3.5" />
+          <span>模块组件</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('settings')}
+          className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-all ${
+            mobileTab === 'settings' ? 'bg-blue-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:bg-slate-700'
+          }`}
+        >
+          <Settings className="h-3.5 w-3.5" />
+          <span>属性样式</span>
+        </button>
+      </div>
+
       <div className="flex-1 flex overflow-hidden relative">
         {/* Left Sidebar */}
-        <LeftComList
-          width={leftWidth}
-          isCollapsed={leftCollapsed}
-          onToggleCollapse={() => setLeftCollapsed(!leftCollapsed)}
-        />
+        <div className={mobileTab === 'components' ? 'w-full h-full md:w-auto block' : 'hidden md:block'}>
+          <LeftComList
+            width={leftWidth}
+            isCollapsed={leftCollapsed}
+            onToggleCollapse={() => setLeftCollapsed(!leftCollapsed)}
+          />
+        </div>
 
         {/* Left Resizer Divider */}
         {!leftCollapsed && (
           <div
-            className="w-1.5 hover:w-2 bg-slate-200 hover:bg-blue-500 cursor-col-resize transition-all shrink-0 z-10"
+            className="hidden md:block w-1.5 hover:w-2 bg-slate-200 hover:bg-blue-500 cursor-col-resize transition-all shrink-0 z-10"
             onMouseDown={handleLeftMouseDown}
             title="按住拖拽调整左侧宽度"
           />
         )}
 
         {/* Main Canvas */}
-        <LegoCanvas />
+        <div className={mobileTab === 'canvas' ? 'flex-1 h-full flex overflow-hidden' : 'hidden md:flex flex-1 overflow-hidden'}>
+          <LegoCanvas />
+        </div>
 
         {/* Right Resizer Divider */}
         {!rightCollapsed && (
           <div
-            className="w-1.5 hover:w-2 bg-slate-200 hover:bg-blue-500 cursor-col-resize transition-all shrink-0 z-10"
+            className="hidden md:block w-1.5 hover:w-2 bg-slate-200 hover:bg-blue-500 cursor-col-resize transition-all shrink-0 z-10"
             onMouseDown={handleRightMouseDown}
             title="按住拖拽调整右侧宽度"
           />
         )}
 
         {/* Right Sidebar */}
-        <RightSetter
-          width={rightWidth}
-          isCollapsed={rightCollapsed}
-          onToggleCollapse={() => setRightCollapsed(!rightCollapsed)}
-        />
+        <div className={mobileTab === 'settings' ? 'w-full h-full md:w-auto block' : 'hidden md:block'}>
+          <RightSetter
+            width={rightWidth}
+            isCollapsed={rightCollapsed}
+            onToggleCollapse={() => setRightCollapsed(!rightCollapsed)}
+          />
+        </div>
       </div>
     </div>
   );

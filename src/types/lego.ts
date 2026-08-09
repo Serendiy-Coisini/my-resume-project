@@ -23,11 +23,17 @@ export interface IWidgetCss {
   borderColor?: string;
   borderStyle?: string;
   borderWidth?: number;
+  borderLeftColor?: string;
+  borderLeftStyle?: string;
+  borderLeftWidth?: number;
   borderRadius?: number | string;
   padding?: IWidgetPadding;
+  paddingLeft?: number;
   margin?: IWidgetPadding;
   opacity?: number;
   clipPath?: string;
+  textDecoration?: string;
+  [key: string]: unknown;
 }
 
 export interface IWidgetDataSource {
@@ -35,8 +41,10 @@ export interface IWidgetDataSource {
   avatarSrc?: string;
   src?: string;
   icon?: string;
-  list?: Array<{ title: string; subtitle?: string; date?: string; desc?: string; [key: string]: unknown }>;
+  list?: Array<string | { title?: string; subtitle?: string; date?: string; desc?: string; [key: string]: unknown }>;
   rate?: number;
+  maxRate?: number;
+  shape?: string;
   [key: string]: unknown;
 }
 
@@ -82,6 +90,7 @@ export interface IHJSchema {
     backgroundImage?: string;
     fontFamily?: string;
     themeColor?: string;
+    [key: string]: unknown;
   };
   config: {
     title: string;

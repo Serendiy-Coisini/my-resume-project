@@ -15,7 +15,10 @@ import {
   Upload,
   User,
   Trash2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  RotateCw,
+  Star,
+  QrCode
 } from 'lucide-react';
 
 interface RightSetterProps {
@@ -110,12 +113,37 @@ export const RightSetter: React.FC<RightSetterProps> = ({
     e.target.value = '';
   };
 
+  const qrFileInputRef = useRef<HTMLInputElement | null>(null);
+
   const handleRemoveAvatar = () => {
     if (!selectedWidgetId) return;
     updateWidgetDataSource(selectedWidgetId, { avatarSrc: '', src: '' });
     setUserInput({ avatarUrl: '' });
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const handleQrFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedWidgetId) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      if (base64) {
+        updateWidgetDataSource(selectedWidgetId, { qrCodeSrc: base64, src: base64, avatarSrc: base64 });
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleRemoveQrCode = () => {
+    if (!selectedWidgetId) return;
+    updateWidgetDataSource(selectedWidgetId, { qrCodeSrc: '', src: '', avatarSrc: '' });
+    if (qrFileInputRef.current) {
+      qrFileInputRef.current.value = '';
     }
   };
 
@@ -251,6 +279,118 @@ export const RightSetter: React.FC<RightSetterProps> = ({
             <p className="text-[10px] text-slate-500 leading-tight">
               支持选择高清 PNG/JPG 免冠照或职业照，实时原图保真渲染。
             </p>
+          </div>
+        )}
+
+        {/* QR Code Setter Panel */}
+        {componentName === 'hj-other-2' && (
+          <div className="space-y-2.5 p-3 bg-purple-50/60 border border-purple-200/80 rounded-xl shadow-sm">
+            <label className="font-bold text-slate-800 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <QrCode className="w-4 h-4 text-purple-600" /> 二维码图片管理
+              </span>
+            </label>
+
+            <div className="flex items-center gap-3 pt-1">
+              <div className="w-16 h-16 bg-white border border-slate-200 rounded-lg overflow-hidden flex items-center justify-center shrink-0 shadow-inner relative p-1">
+                {(dataSource.qrCodeSrc || dataSource.src || dataSource.avatarSrc) ? (
+                  <img
+                    src={(dataSource.qrCodeSrc || dataSource.src || dataSource.avatarSrc) as string}
+                    alt="QR Code"
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <QrCode className="w-8 h-8 text-slate-300" />
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2 flex-1">
+                <input
+                  ref={qrFileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg"
+                  className="hidden"
+                  onChange={handleQrFileUpload}
+                />
+
+                <button
+                  type="button"
+                  className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/20 transition-all cursor-pointer"
+                  onClick={() => qrFileInputRef.current?.click()}
+                >
+                  <Upload className="w-4 h-4" />
+                  {(dataSource.qrCodeSrc || dataSource.src || dataSource.avatarSrc) ? '更换二维码图片' : '上传二维码图片'}
+                </button>
+
+                {(dataSource.qrCodeSrc || dataSource.src || dataSource.avatarSrc) && (
+                  <button
+                    type="button"
+                    className="w-full py-1 text-[11px] text-rose-600 hover:bg-rose-100 rounded-md text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                    onClick={handleRemoveQrCode}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    删除 / 清空二维码图片
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[10px] text-slate-500">二维码说明文字</span>
+              <input
+                type="text"
+                className="w-full p-1.5 border border-slate-200 rounded text-slate-800 text-xs bg-white"
+                value={(dataSource.text as string) || ''}
+                placeholder="例如：扫码查看个人微信 / 作品集"
+                onChange={(e) =>
+                  updateWidgetDataSource(selectedWidget.id, { text: e.target.value })
+                }
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Rate Widget Setter Panel */}
+        {componentName.startsWith('hj-rate') && (
+          <div className="space-y-2.5 p-3 bg-amber-50/60 border border-amber-200/80 rounded-xl shadow-sm">
+            <label className="font-bold text-slate-800 flex items-center gap-1.5">
+              <Star className="w-4 h-4 text-amber-500 fill-amber-500" /> 评分等级与图形调节
+            </label>
+
+            {/* Rate Value */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-slate-600 font-medium">当前评分得分 (Rate):</span>
+                <span className="font-mono font-bold text-amber-700">
+                  {dataSource.rate !== undefined ? dataSource.rate : 3}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max={Number(dataSource.maxRate || (dataSource.shape === 'bar' ? 100 : 5))}
+                step={dataSource.shape === 'bar' ? 5 : 1}
+                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                value={dataSource.rate !== undefined ? dataSource.rate : 3}
+                onChange={(e) =>
+                  updateWidgetDataSource(selectedWidget.id, { rate: Number(e.target.value) })
+                }
+              />
+            </div>
+
+            {/* Max Rate */}
+            <div>
+              <span className="text-[10px] text-slate-500">满分/上限 (Max Rate)</span>
+              <input
+                type="number"
+                min="1"
+                className="w-full p-1.5 border border-slate-200 rounded text-slate-800 text-xs bg-white"
+                value={dataSource.maxRate !== undefined ? dataSource.maxRate : (dataSource.shape === 'bar' ? 100 : 5)}
+                onChange={(e) =>
+                  updateWidgetDataSource(selectedWidget.id, { maxRate: Number(e.target.value) || 5 })
+                }
+              />
+            </div>
           </div>
         )}
 
@@ -418,6 +558,58 @@ export const RightSetter: React.FC<RightSetterProps> = ({
                 }
               />
             </div>
+          </div>
+        </div>
+
+        {/* 2.5 Rotation Control */}
+        <div className="space-y-1.5 pt-2 border-t border-slate-100">
+          <div className="flex items-center justify-between">
+            <label className="font-semibold text-slate-700 flex items-center gap-1">
+              <RotateCw className="w-3.5 h-3.5 text-blue-600" /> 旋转角度 (Rotate)
+            </label>
+            <span className="font-mono text-[11px] text-blue-600 font-bold">
+              {css.rotate || 0}°
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min="0"
+              max="360"
+              step="1"
+              className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              value={css.rotate || 0}
+              onChange={(e) =>
+                updateWidgetCss(selectedWidget.id, { rotate: Number(e.target.value) })
+              }
+            />
+            <input
+              type="number"
+              min="0"
+              max="360"
+              className="w-14 p-1 border border-slate-200 rounded text-slate-800 text-[11px] text-center shrink-0"
+              value={css.rotate || 0}
+              onChange={(e) =>
+                updateWidgetCss(selectedWidget.id, { rotate: Number(e.target.value) % 360 })
+              }
+            />
+          </div>
+          <div className="flex items-center gap-1.5 pt-1">
+            <span className="text-[10px] text-slate-400">快速角度:</span>
+            {[0, 90, 180, 270].map((angle) => (
+              <button
+                key={angle}
+                type="button"
+                className={`px-2 py-0.5 text-[10px] rounded font-mono border transition-all cursor-pointer ${
+                  (css.rotate || 0) === angle
+                    ? 'bg-blue-600 text-white border-blue-600 font-bold shadow-2xs'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+                onClick={() => updateWidgetCss(selectedWidget.id, { rotate: angle })}
+              >
+                {angle}°
+              </button>
+            ))}
           </div>
         </div>
 

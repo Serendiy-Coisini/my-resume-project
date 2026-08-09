@@ -6,10 +6,15 @@ import { RightSetter } from './RightSetter';
 import { useLegoDesignerStore } from '@/store/lego-designer-store';
 import { useResumeStore } from '@/store/resume-store';
 import { buildLegoSchemaFromResume } from '@/lib/lego-adapter';
+import { PRESET_TEMPLATES } from '@/lib/preset-templates';
 import { Layout, PlusCircle, Settings } from 'lucide-react';
 
-export const LegoDesigner: React.FC = () => {
-  const { setSchema, setScale } = useLegoDesignerStore();
+export interface LegoDesignerProps {
+  standalone?: boolean;
+}
+
+export const LegoDesigner: React.FC<LegoDesignerProps> = ({ standalone }) => {
+  const { schema, setSchema, setScale } = useLegoDesignerStore();
   const { userInput, analysisResult, selectedTemplate, templateOptions, customTemplateHTML } = useResumeStore();
 
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -25,11 +30,23 @@ export const LegoDesigner: React.FC = () => {
   const [isResizingRight, setIsResizingRight] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
-    // Auto populate Lego Canvas with AI-optimized resume data on load using selectedTemplate & templateOptions
-    const initialSchema = buildLegoSchemaFromResume(userInput, analysisResult, selectedTemplate, templateOptions, customTemplateHTML);
-    setSchema(initialSchema, false);
+    if (!hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      if (!standalone) {
+        // Auto populate Lego Canvas with AI-optimized resume data on initial load
+        const initialSchema = buildLegoSchemaFromResume(userInput, analysisResult, selectedTemplate, templateOptions, customTemplateHTML);
+        setSchema(initialSchema, false);
+      } else {
+        // In standalone mode, if canvas has no widgets, populate with default classic preset template
+        const currentChildren = schema.componentsTree?.[0]?.children || [];
+        if (currentChildren.length === 0) {
+          setSchema(PRESET_TEMPLATES[0].schema, false);
+        }
+      }
+    }
 
     // Compute optimal fit scale on mount & window resize
     const updateAutoFitScale = () => {
@@ -54,7 +71,7 @@ export const LegoDesigner: React.FC = () => {
       window.removeEventListener('resize', updateAutoFitScale);
       clearTimeout(timer);
     };
-  }, [userInput, analysisResult, selectedTemplate, templateOptions, customTemplateHTML, setSchema, setScale]);
+  }, [userInput, analysisResult, selectedTemplate, templateOptions, customTemplateHTML, setSchema, setScale, standalone]);
 
   // Handle Dragging Divider for Left Sidebar
   const handleLeftMouseDown = (e: React.MouseEvent) => {
@@ -96,15 +113,18 @@ export const LegoDesigner: React.FC = () => {
     };
   }, [isResizingLeft, isResizingRight]);
 
-  const containerClasses = isFullScreen
-    ? 'fixed inset-0 z-[1000] w-screen h-screen bg-slate-900 flex flex-col overflow-hidden select-none'
-    : 'w-full h-[720px] max-h-[85vh] bg-slate-100 flex flex-col rounded-xl overflow-hidden shadow-2xl border border-slate-300 select-none';
+  const containerClasses = standalone
+    ? 'w-full h-full bg-slate-100 flex flex-col overflow-hidden select-none'
+    : (isFullScreen
+      ? 'fixed inset-0 z-[1000] w-screen h-screen bg-slate-900 flex flex-col overflow-hidden select-none'
+      : 'w-full h-[720px] max-h-[85vh] bg-slate-100 flex flex-col rounded-xl overflow-hidden shadow-2xl border border-slate-300 select-none');
 
   return (
     <div ref={containerRef} className={containerClasses}>
       <Toolbar
         isFullScreen={isFullScreen}
         onToggleFullScreen={() => setIsFullScreen(!isFullScreen)}
+        standalone={standalone}
       />
 
       {/* Mobile view panel switcher (md:hidden) */}

@@ -2,7 +2,14 @@ import React, { useState, useRef } from 'react';
 import { useLegoDesignerStore } from '@/store/lego-designer-store';
 import { WidgetRenderer } from './widgets/WidgetRenderer';
 import type { IWidget } from '@/types/lego';
-import { Layers, Copy, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import { Layers, Copy, Trash2, ArrowUp, ArrowDown, Maximize } from 'lucide-react';
+
+// Text-based widget types that should auto-expand height
+const isTextWidget = (componentName: string) =>
+  componentName.startsWith('hj-text') ||
+  componentName === 'hj-[#exper-1]' ||
+  componentName === 'hj-li' ||
+  componentName.startsWith('hj-date');
 
 export const LegoCanvas: React.FC = () => {
   const {
@@ -14,6 +21,7 @@ export const LegoCanvas: React.FC = () => {
     deleteWidget,
     duplicateWidget,
     moveWidgetLayer,
+    pushHistoryState,
     undo,
     redo
   } = useLegoDesignerStore();
@@ -55,6 +63,8 @@ export const LegoCanvas: React.FC = () => {
 
     if (e.button === 2) return; // Right click handled by contextmenu
 
+    pushHistoryState();
+
     setDragState({
       isDragging: true,
       isResizing: false,
@@ -72,6 +82,8 @@ export const LegoCanvas: React.FC = () => {
   const handleResizeMouseDown = (e: React.MouseEvent, widget: IWidget, handle: string) => {
     e.stopPropagation();
     setSelectedWidgetId(widget.id);
+
+    pushHistoryState();
 
     setDragState({
       isDragging: false,
@@ -95,10 +107,14 @@ export const LegoCanvas: React.FC = () => {
     const deltaY = (e.clientY - dragState.startY) / scale;
 
     if (dragState.isDragging) {
-      updateWidgetCss(dragState.widgetId, {
-        left: Math.max(0, Math.round(dragState.initialLeft + deltaX)),
-        top: Math.max(0, Math.round(dragState.initialTop + deltaY))
-      });
+      updateWidgetCss(
+        dragState.widgetId,
+        {
+          left: Math.max(0, Math.round(dragState.initialLeft + deltaX)),
+          top: Math.max(0, Math.round(dragState.initialTop + deltaY))
+        },
+        false
+      );
     } else if (dragState.isResizing && dragState.resizeHandle) {
       const handle = dragState.resizeHandle;
       let newWidth = dragState.initialWidth;
@@ -119,12 +135,16 @@ export const LegoCanvas: React.FC = () => {
         newHeight = possibleHeight;
       }
 
-      updateWidgetCss(dragState.widgetId, {
-        left: newLeft,
-        top: newTop,
-        width: newWidth,
-        height: newHeight
-      });
+      updateWidgetCss(
+        dragState.widgetId,
+        {
+          left: newLeft,
+          top: newTop,
+          width: newWidth,
+          height: newHeight
+        },
+        false
+      );
     }
   };
 
@@ -173,17 +193,17 @@ export const LegoCanvas: React.FC = () => {
         className="transition-transform origin-top duration-75 flex flex-col gap-8 items-center"
         style={{ transform: `scale(${scale})` }}
       >
-        {schema.componentsTree.map((page) => (
+        {(schema?.componentsTree || []).map((page) => (
           <div
-            key={page.id}
+            key={page.id || 'page-1'}
             id="lego-canvas-page"
             className="canvas-page-bg relative bg-white shadow-2xl rounded-sm border border-slate-300 overflow-hidden"
             style={{
-              width: `${schema.css.width}px`,
-              height: `${schema.css.height}px`
+              width: `${schema.css?.width || 820}px`,
+              height: `${schema.css?.height || 1160}px`
             }}
           >
-            {page.children.map((widget) => {
+            {(page.children || []).map((widget) => {
               const isSelected = selectedWidgetId === widget.id;
 
               return (
@@ -197,9 +217,13 @@ export const LegoCanvas: React.FC = () => {
                     left: `${widget.css.left}px`,
                     top: `${widget.css.top}px`,
                     width: `${widget.css.width}px`,
-                    height: `${widget.css.height}px`,
+                    ...(isTextWidget(widget.componentName)
+                      ? { minHeight: `${widget.css.height}px` }
+                      : { height: `${widget.css.height}px` }),
+                    transform: widget.css.rotate ? `rotate(${widget.css.rotate}deg)` : undefined,
                     zIndex: widget.css.zIndex || 1
                   }}
+                  data-widget-id={widget.id}
                   onMouseDown={(e) => handleWidgetMouseDown(e, widget)}
                   onContextMenu={(e) => handleContextMenu(e, widget.id)}
                 >
@@ -279,6 +303,23 @@ export const LegoCanvas: React.FC = () => {
             }}
           >
             <Copy className="w-4 h-4 text-emerald-500" /> 复制组件
+          </button>
+          <button
+            className="w-full px-3 py-1.5 text-left hover:bg-slate-100 flex items-center gap-2"
+            onClick={() => {
+              // Auto-fit: measure actual rendered height and update
+              const widgetEl = document.querySelector(`[data-widget-id="${contextMenu.widgetId}"]`);
+              if (widgetEl) {
+                const contentEl = widgetEl.firstElementChild as HTMLElement;
+                if (contentEl) {
+                  const actualHeight = Math.max(20, contentEl.scrollHeight + 4);
+                  updateWidgetCss(contextMenu.widgetId, { height: actualHeight });
+                }
+              }
+              setContextMenu(null);
+            }}
+          >
+            <Maximize className="w-4 h-4 text-indigo-500" /> 自适应高度
           </button>
           <button
             className="w-full px-3 py-1.5 text-left hover:bg-rose-50 text-rose-600 flex items-center gap-2"

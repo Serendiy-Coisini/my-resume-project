@@ -1,0 +1,2 @@
+import{v as o,au as n,x as c,y as r,B as i}from"./vue-COv4YylH.js";const p="/static/images/no-data-Ds2n01aV.png",d={class:"no-data-box"},l=o({__name:"NoData",props:{width:{default:"300px"},height:{default:"300px"}},setup(a){n(e=>({v2528821c:t.width,v6618c791:t.height}));const t=a;return(e,s)=>(r(),c("div",d,[...s[0]||(s[0]=[i("img",{src:p,alt:""},null,-1)])]))}});export{l as _};
+//# sourceMappingURL=NoData.vue_vue_type_style_index_0_lang-B87RZ2GO.js.map

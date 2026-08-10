@@ -41,9 +41,10 @@ const STAGE_STEPS = [
   { id: "interview", name: "面试预测", label: "正在预测高频面试考点与回答", startPct: 85, endPct: 95 },
 ];
 
-function detectIndustrySmart(targetRole: string, jobDescription: string): string {
-  const roleText = targetRole.trim().toLowerCase();
-  const jdText = jobDescription.trim().toLowerCase();
+function detectIndustrySmart(targetRole: string = "", jobDescription: string = ""): string {
+  const roleText = (targetRole || "").trim().toLowerCase();
+  const jdText = (jobDescription || "").trim().toLowerCase();
+
 
   if (!roleText && !jdText) {
     return "互联网 / 软件工程";
@@ -379,9 +380,10 @@ export function InputStep() {
   };
 
   const canAnalyze =
-    userInput.targetRole.trim() &&
-    userInput.jobDescription.trim() &&
-    userInput.originalResume.trim();
+    Boolean(userInput?.targetRole?.trim()) &&
+    Boolean(userInput?.jobDescription?.trim()) &&
+    Boolean(userInput?.originalResume?.trim());
+
 
   return (
     <div>

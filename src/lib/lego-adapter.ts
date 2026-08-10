@@ -103,10 +103,11 @@ export function buildLegoSchemaFromResume(
     : ['JavaScript / TypeScript', 'React / Next.js', 'Node.js', 'Tailwind CSS', 'Git'];
 
   const edu = finalResume?.education || {
-    school: '韩山师范学院',
+    school: '清华大学',
     degree: '本科',
     period: '2023.09 - 2027.06'
   };
+
 
   const avatarUrl = finalResume?.personalInfo?.avatarUrl || userInput.avatarUrl || '';
   const hasAvatar = Boolean(avatarUrl);

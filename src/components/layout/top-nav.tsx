@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FileText, Menu, RotateCcw } from "lucide-react";
+import { FileText, Menu, RotateCcw, Settings } from "lucide-react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { fetchAIStatus } from "@/services/ai/resumeAgent";
@@ -45,17 +46,18 @@ export function TopNav({ onMenuClick }: { onMenuClick?: () => void }) {
             <Menu className="h-4 w-4 text-neutral-700" />
           </button>
         )}
-        <div className="flex h-7 w-7 items-center justify-center rounded-md border border-neutral-200 bg-blue-50/50 text-blue-600">
-          <FileText className="h-3.5 w-3.5" />
-        </div>
-        <div className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md border border-neutral-200 bg-blue-50/50 text-blue-600">
+            <FileText className="h-3.5 w-3.5" />
+          </div>
           <h1 className="text-sm font-semibold tracking-tight text-neutral-900">简历专家</h1>
-          {aiMode && (
-            <Badge variant={aiMode === "llm" ? "success" : "secondary"} className="text-[10px] py-0 px-1.5 font-normal sm:hidden">
-              {aiMode === "llm" ? "AI" : "Mock"}
-            </Badge>
-          )}
-        </div>
+        </Link>
+        {aiMode && (
+          <Badge variant={aiMode === "llm" ? "success" : "secondary"} className="text-[10px] py-0 px-1.5 font-normal sm:hidden">
+            {aiMode === "llm" ? "AI" : "Mock"}
+          </Badge>
+        )}
+
         <span className="hidden rounded-md border border-neutral-200 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500 sm:inline">
           JD 定制简历优化 Agent
         </span>
@@ -67,11 +69,15 @@ export function TopNav({ onMenuClick }: { onMenuClick?: () => void }) {
       </div>
 
       <div className="flex items-center gap-2">
-        <p className="hidden text-xs text-neutral-400 lg:block">
-          基于目标岗位 JD · 诊断 · 匹配 · 优化 · 面试准备
-        </p>
+        <Link href="/settings">
+          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 border-neutral-200 hover:bg-neutral-50 font-semibold text-neutral-700">
+            <Settings className="h-3.5 w-3.5 text-blue-600" />
+            <span>⚙️ AI 配置</span>
+          </Button>
+        </Link>
+
         {analysisResult && (
-          <Button variant="ghost" size="sm" className="h-7 text-xs text-neutral-500 px-2" onClick={handleReset}>
+          <Button variant="ghost" size="sm" className="h-8 text-xs text-neutral-500 px-2" onClick={handleReset}>
             <RotateCcw className="h-3 w-3 sm:mr-1" />
             <span className="hidden sm:inline">重新开始</span>
           </Button>

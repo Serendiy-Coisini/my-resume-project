@@ -518,10 +518,11 @@ function buildFinalResume(input: UserInput): AnalysisResult["finalResume"] {
       "LLM 应用基础",
     ],
     education: {
-      school: "某大学",
+      school: "清华大学",
       degree: "信息管理与信息系统 | 本科",
       period: "2016 - 2020",
     },
+
   };
 }
 

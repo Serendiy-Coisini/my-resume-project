@@ -135,9 +135,36 @@ export function ExportStep() {
     }
   };
 
-  const handleExportWord = () => {
-    exportResumeAsWord(currentResume, selectedTemplate, customTemplateHTML, templateOptions);
+  const handleExportWord = async () => {
+    try {
+      const res = await fetch("/api/export/word", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resume: currentResume }),
+      });
+      if (res.status === 403) {
+        const data = await res.json();
+        alert(data.error || "Word 导出为会员功能，请升级会员");
+        return;
+      }
+      if (!res.ok) {
+        // fallback to client-side export
+        exportResumeAsWord(currentResume, selectedTemplate, customTemplateHTML, templateOptions);
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${currentResume.personalInfo.name || "简历"}_优化后.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      exportResumeAsWord(currentResume, selectedTemplate, customTemplateHTML, templateOptions);
+    }
   };
+
 
   const handleExportPDF = () => {
     exportResumeAsPDF(currentResume, selectedTemplate, customTemplateHTML, templateOptions);

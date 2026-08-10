@@ -64,7 +64,7 @@ interface ResumeStore {
   setCustomTemplateHTML: (html: string) => void;
   updateFollowUpAnswer: (id: string, answer: string) => void;
   setFollowUpBullet: (id: string, bullet: string) => void;
-  getStepStatus: (step: StepId) => StepStatus;
+  getStepStatus: (stepId: StepId) => StepStatus;
   setCopied: (copied: boolean) => void;
   reset: () => void;
   goToNextStep: () => void;

@@ -40,13 +40,21 @@ export function FollowUpStep() {
   const { followUpQuestions } = analysisResult;
 
   // Collect all non-empty generated bullets
+  const answeredCount = followUpQuestions.filter(
+    (q) => (q.userAnswer || "").trim().length > 0
+  ).length;
+  const generatedCount = followUpQuestions.filter(
+    (q) => (q.generatedBullet || "").trim().length > 0
+  ).length;
+
   const generatedBullets = followUpQuestions
-    .filter((q) => q.generatedBullet.trim())
+    .filter((q) => (q.generatedBullet || "").trim())
     .map((q) => ({ purpose: q.purpose, bullet: q.generatedBullet }));
 
   const handleGenerateBullet = async (id: string) => {
     const question = followUpQuestions.find((q) => q.id === id);
-    if (!question?.userAnswer.trim()) return;
+    if (!question || !(question.userAnswer || "").trim()) return;
+
 
     setLoadingId(id);
     setError(null);

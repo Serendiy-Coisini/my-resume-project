@@ -1,25 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const outfit = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "简历专家 - JD 定制简历优化 Agent",
-  description: "基于目标岗位 JD，诊断简历、匹配岗位要求、挖掘经历、重构表达，并生成面试准备材料",
-  icons: {
-    icon: "/favicon.png",
-    shortcut: "/favicon.png",
-    apple: "/favicon.png",
-  },
+  title: "简历专家 - 大模型对齐 JD · 简历深度重构 Agent",
+  description:
+    "结合目标岗位 JD 深度诊断、匹配技能差距、启发挖掘经历细节、一键重构高含金量 Bullet 点",
 };
 
 export default function RootLayout({
@@ -28,10 +24,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang="zh-CN" className="h-full">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        suppressHydrationWarning
+        className={`${inter.variable} ${outfit.variable} antialiased h-full font-sans bg-slate-950 text-slate-50`}
       >
         {children}
       </body>

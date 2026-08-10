@@ -21,19 +21,21 @@ export function ResumeTemplateView({ resume, templateId }: ResumeTemplateViewPro
   );
 
   return (
-    <Card className="relative overflow-hidden border-slate-200 shadow-md bg-white rounded-xl">
+    <Card className="relative overflow-hidden border-slate-200 shadow-md bg-white rounded-xl w-full">
       {showPageBreakGuide && (
         <div className="pointer-events-none absolute inset-x-0 top-[1050px] z-30 flex items-center justify-between border-b-2 border-dashed border-rose-500 bg-rose-500/10 px-4 py-1.5 text-xs font-bold text-rose-700 backdrop-blur-[1px]">
           <span>✂️ A4 物理分页切割导轨 (标准 A4 纸高度 297mm / 1050px)</span>
           <span>第 1 页切割线</span>
         </div>
       )}
-      <iframe
-        key={`${templateId}-${JSON.stringify(templateOptions)}`}
-        srcDoc={compiledHTML}
-        title="Resume Template Live Preview"
-        className="w-full min-h-[1100px] border-0 bg-white"
-      />
+      <div className="w-full overflow-x-auto touch-pan-x">
+        <iframe
+          key={`${templateId}-${JSON.stringify(templateOptions)}`}
+          srcDoc={compiledHTML}
+          title="Resume Template Live Preview"
+          className="w-full min-w-[720px] md:min-w-full min-h-[1050px] border-0 bg-white"
+        />
+      </div>
     </Card>
   );
 }

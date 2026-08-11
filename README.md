@@ -54,13 +54,22 @@
 #### 📝 2. 目标岗位 JD 与简历材料录入 (Step 1)
 ![目标岗位 JD 与简历材料录入](docs/images/input-step.png)
 
-#### ⚡ 3. STAR 法则履历重构与改写对比 (Step 6)
+#### 🔍 3. JD 匹配度与人岗缺口深度分析 (Step 4)
+![JD 匹配度与人岗缺口深度分析](docs/images/match-analysis.png)
+
+#### ⚡ 4. STAR 法则履历重构与改写对比 (Step 6)
 ![STAR 法则履历重构与改写对比](docs/images/optimization.png)
 
-#### 🎯 4. 目标岗位面试准备与可能追问预测 (Step 7)
+#### 🎯 5. 目标岗位面试准备与可能追问预测 (Step 7)
 ![目标岗位面试准备与可能追问预测](docs/images/interview-prep.png)
 
-#### ⚙️ 5. 可视化 AI 大模型配置面板 (BYOK 模式)
+#### 📥 6. 全景综合岗位分析与面试报告 PDF 导出
+![全景综合岗位分析与面试报告 PDF 导出](docs/images/pdf-export.png)
+
+#### 🧱 7. 积木自由排版设计器 (Lego Designer)
+![积木自由排版设计器](docs/images/lego-designer.png)
+
+#### ⚙️ 8. 可视化 AI 大模型配置面板 (BYOK 模式)
 ![可视化 AI 大模型配置面板](docs/images/settings.png)
 
 ---

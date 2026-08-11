@@ -46,6 +46,25 @@
 
 ---
 
+## 📸 界面预览 (Screenshots & Previews)
+
+#### 🏠 1. 首页 Landing Page
+![首页 Landing Page](docs/images/hero.png)
+
+#### 📝 2. 目标岗位 JD 与简历材料录入 (Step 1)
+![目标岗位 JD 与简历材料录入](docs/images/input-step.png)
+
+#### ⚡ 3. STAR 法则履历重构与改写对比 (Step 6)
+![STAR 法则履历重构与改写对比](docs/images/optimization.png)
+
+#### 🎯 4. 目标岗位面试准备与可能追问预测 (Step 7)
+![目标岗位面试准备与可能追问预测](docs/images/interview-prep.png)
+
+#### ⚙️ 5. 可视化 AI 大模型配置面板 (BYOK 模式)
+![可视化 AI 大模型配置面板](docs/images/settings.png)
+
+---
+
 ## 🛠️ 技术栈
 
 - **框架与构建**：Next.js 15 (App Router), React 19, TypeScript

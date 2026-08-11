@@ -68,6 +68,7 @@ interface LegoDesignerState {
   updateWidgetDataSource: (widgetId: string, dataUpdate: Partial<IWidgetDataSource>, saveHistory?: boolean) => void;
   
   addWidget: (widget: IWidget, pageIndex?: number, saveHistory?: boolean) => void;
+  addWidgets: (widgets: IWidget[], pageIndex?: number, saveHistory?: boolean) => void;
   deleteWidget: (widgetId: string, saveHistory?: boolean) => void;
   duplicateWidget: (widgetId: string, saveHistory?: boolean) => void;
   moveWidgetLayer: (widgetId: string, direction: 'up' | 'down' | 'top' | 'bottom', saveHistory?: boolean) => void;
@@ -181,7 +182,8 @@ export const useLegoDesignerStore = create<LegoDesignerState>((set, get) => {
       set({ schema: newSchema, ...historyUpdate });
     },
 
-    addWidget: (widget, pageIndexArg, saveHistory = true) => {
+    addWidgets: (widgets, pageIndexArg, saveHistory = true) => {
+      if (!widgets || widgets.length === 0) return;
       const { schema, pageActiveIndex } = get();
       const historyUpdate = saveHistory ? saveStateToHistory(schema) : {};
       const newSchema = deepClone(schema);
@@ -196,22 +198,40 @@ export const useLegoDesignerStore = create<LegoDesignerState>((set, get) => {
         };
       }
 
-      const newWidget = deepClone(widget);
-      if (!newWidget.id) {
-        newWidget.id = `widget-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-      }
-
       if (!newSchema.componentsTree[targetPageIndex].children) {
         newSchema.componentsTree[targetPageIndex].children = [];
       }
 
-      newSchema.componentsTree[targetPageIndex].children.push(newWidget);
+      let lastId = '';
+      let maxBottom = Number(newSchema.css.height) || 1160;
+
+      widgets.forEach((widget, index) => {
+        const newWidget = deepClone(widget);
+        if (!newWidget.id) {
+          newWidget.id = `widget-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 7)}`;
+        }
+        lastId = newWidget.id;
+
+        const widgetBottom = (Number(newWidget.css.top) || 0) + (Number(newWidget.css.height) || 40);
+        if (widgetBottom + 60 > maxBottom) {
+          maxBottom = widgetBottom + 60;
+        }
+
+        newSchema.componentsTree[targetPageIndex].children.push(newWidget);
+      });
+
+      newSchema.css.height = maxBottom;
 
       set({
         schema: newSchema,
-        selectedWidgetId: newWidget.id,
+        selectedWidgetId: lastId,
         ...historyUpdate
       });
+    },
+
+    addWidget: (widget, pageIndexArg, saveHistory = true) => {
+      const { addWidgets } = get();
+      addWidgets([widget], pageIndexArg, saveHistory);
     },
 
     deleteWidget: (widgetId, saveHistory = true) => {

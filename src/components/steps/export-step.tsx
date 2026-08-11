@@ -533,30 +533,58 @@ export function ExportStep() {
             </Button>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-xs text-neutral-500">
-                  <FileText className="h-3.5 w-3.5" />
+                <Button variant="ghost" size="sm" className="text-xs text-neutral-600 hover:text-neutral-900 border border-neutral-200 bg-white hover:bg-slate-50 font-medium gap-1 shadow-2xs">
+                  <FileText className="h-3.5 w-3.5 text-neutral-500" />
                   查看纯文本格式
                 </Button>
               </DialogTrigger>
-            <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>纯文本简历</DialogTitle>
-                <DialogDescription>
-                  无格式纯文本版本，方便复制粘贴到其他编辑器
-                </DialogDescription>
-              </DialogHeader>
-              <Textarea
-                readOnly
-                className="min-h-[400px] font-mono text-xs leading-relaxed"
-                value={resumeText}
-              />
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" size="sm" onClick={handleCopy}>
-                  {copied ? "已复制" : "复制文本"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl p-6 rounded-2xl">
+                <DialogHeader className="pb-2 border-b border-slate-800">
+                  <DialogTitle className="text-lg font-bold text-slate-50 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-400" />
+                    纯文本格式简历
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-slate-400 font-medium mt-1">
+                    无格式纯文本版本，可直接全选复制，方便粘贴至招聘平台文本框、邮件或第三方编辑器
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="py-2">
+                  <Textarea
+                    readOnly
+                    className="min-h-[420px] font-mono text-xs md:text-sm leading-relaxed bg-slate-950 border border-slate-800 text-slate-100 focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl p-4 selection:bg-blue-600 selection:text-white shadow-inner"
+                    value={resumeText}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                  <span className="text-xs text-slate-400 font-medium">
+                    共 {resumeText.length} 个字符
+                  </span>
+                  <Button
+                    size="sm"
+                    onClick={handleCopy}
+                    className={`font-semibold text-xs h-9 px-5 rounded-lg gap-2 shadow-lg transition-all ${
+                      copied
+                        ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30"
+                        : "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30"
+                    }`}
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-4 h-4 text-white" />
+                        已成功复制全部纯文本
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 text-white" />
+                        一键复制纯文本
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 

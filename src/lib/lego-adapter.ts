@@ -48,6 +48,69 @@ function resolveEffectiveTemplateId(
   return 'classic-minimal';
 }
 
+/**
+ * Accurately calculate required height for an experience/project card
+ * based on card width, header info, and total bullet text line wrapping.
+ */
+function calculateCardHeight(
+  companyOrName: string,
+  role: string,
+  period: string,
+  bullets: string[],
+  cardWidthPx: number = 500,
+  fontSizePx: number = 12.5,
+  lineHeightPx: number = 20
+): number {
+  const hasHeader = Boolean((companyOrName || role || period).trim());
+  const headerHeight = hasHeader ? 32 : 0;
+
+  // Usable text width inside card padding (~16px horizontal padding)
+  const usableWidth = Math.max(200, cardWidthPx - 24);
+
+  // Character width estimation:
+  // 1 Chinese character ≈ 0.95 * fontSizePx
+  // 1 English/punctuation character ≈ 0.55 * fontSizePx
+  // Mixed average: ~0.92 * fontSizePx
+  const charWidthPx = fontSizePx * 0.92;
+  const charsPerLine = Math.max(15, Math.floor(usableWidth / charWidthPx));
+
+  let totalLines = 0;
+  bullets.forEach((b) => {
+    const text = b.trim();
+    if (!text) return;
+    const len = text.length;
+    const linesForBullet = Math.max(1, Math.ceil(len / charsPerLine));
+    totalLines += linesForBullet;
+  });
+
+  if (bullets.length === 0) {
+    totalLines = 1;
+  }
+
+  const contentHeight = totalLines * lineHeightPx;
+  const paddingMargin = 22; // top & bottom padding + gap
+
+  const computedHeight = headerHeight + contentHeight + paddingMargin;
+  return Math.max(85, Math.ceil(computedHeight));
+}
+
+/**
+ * Accurately calculate required height for summary text block
+ */
+function calculateSummaryHeight(
+  summaryText: string,
+  cardWidthPx: number = 760,
+  fontSizePx: number = 12.5,
+  lineHeightPx: number = 20
+): number {
+  const usableWidth = Math.max(180, cardWidthPx - 24);
+  const charWidthPx = fontSizePx * 0.92;
+  const charsPerLine = Math.max(15, Math.floor(usableWidth / charWidthPx));
+  const textLen = (summaryText || "").trim().length;
+  const totalLines = Math.max(1, Math.ceil(textLen / charsPerLine));
+  return Math.max(45, Math.ceil(totalLines * lineHeightPx + 16));
+}
+
 export function buildLegoSchemaFromResume(
   userInput: UserInput,
   analysisResult?: AnalysisResult | null,
@@ -249,6 +312,8 @@ export function buildLegoSchemaFromResume(
       }
     });
 
+    const summaryH = calculateSummaryHeight(summary, 206, 11.5, 18);
+
     // Summary Card
     children.push({
       id: 'widget-summary-sidebar-bg',
@@ -258,7 +323,7 @@ export function buildLegoSchemaFromResume(
         left: 30,
         top: nameTop + 235,
         width: 230,
-        height: 220,
+        height: summaryH + 20,
         zIndex: 2,
         backgroundColor: '#ffffff',
         borderColor: '#cbd5e1',
@@ -278,7 +343,7 @@ export function buildLegoSchemaFromResume(
         left: 42,
         top: nameTop + 245,
         width: 206,
-        height: 200,
+        height: summaryH,
         zIndex: 3,
         fontColor: '#475569',
         fontSize: 11.5,
@@ -348,7 +413,7 @@ export function buildLegoSchemaFromResume(
 
     workList.forEach((w, idx) => {
       const formattedBullets = w.bullets.map((b) => (b.trim().startsWith('•') ? b : `• ${b}`)).join('\n');
-      const cardHeight = Math.max(100, 45 + w.bullets.length * 26);
+      const cardHeight = calculateCardHeight(w.company, w.role, w.period, w.bullets, 500, 12.5, 20);
       children.push({
         id: `widget-work-card-${idx}`,
         componentName: 'hj-[#exper-1]',
@@ -400,7 +465,7 @@ export function buildLegoSchemaFromResume(
 
     projectList.forEach((p, idx) => {
       const formattedBullets = p.bullets.map((b) => (b.trim().startsWith('•') ? b : `• ${b}`)).join('\n');
-      const cardHeight = Math.max(100, 45 + p.bullets.length * 26);
+      const cardHeight = calculateCardHeight(p.name, p.role, p.period, p.bullets, 500, 12.5, 20);
       children.push({
         id: `widget-project-card-${idx}`,
         componentName: 'hj-[#exper-1]',
@@ -466,6 +531,11 @@ export function buildLegoSchemaFromResume(
     });
 
     currentTop = Math.max(1120, rightTop + 100);
+
+    const sidebarBg = children.find((c) => c.id === 'widget-sidebar-bg');
+    if (sidebarBg) {
+      sidebarBg.css.height = Math.max(1100, currentTop - 40);
+    }
 
     return {
       id: `lego-resume-sidebar-${Date.now()}`,
@@ -570,14 +640,15 @@ export function buildLegoSchemaFromResume(
     });
     topPos += 32;
 
+    const sumH = calculateSummaryHeight(summary, 760, 13, 21);
     children.push({
       id: 'widget-corp-summary-content',
       componentName: 'hj-text-1',
       title: '职业摘要内容',
-      css: { left: 30, top: topPos, width: 760, height: 60, zIndex: 2, fontColor: '#334155', fontSize: 13, lineHeight: 1.6 },
+      css: { left: 30, top: topPos, width: 760, height: sumH, zIndex: 2, fontColor: '#334155', fontSize: 13, lineHeight: 1.6 },
       dataSource: { text: summary }
     });
-    topPos += 75;
+    topPos += sumH + 20;
 
     // 2. Core Skills
     children.push({
@@ -635,7 +706,7 @@ export function buildLegoSchemaFromResume(
 
     workList.forEach((w, idx) => {
       const formattedBullets = w.bullets.map((b) => (b.trim().startsWith('•') ? b : `• ${b}`)).join('\n');
-      const cardHeight = Math.max(100, 45 + w.bullets.length * 28);
+      const cardHeight = calculateCardHeight(w.company, w.role, w.period, w.bullets, 760, 12.5, 20);
       children.push({
         id: `widget-corp-work-${idx}`,
         componentName: 'hj-[#exper-1]',
@@ -676,7 +747,7 @@ export function buildLegoSchemaFromResume(
 
     projectList.forEach((p, idx) => {
       const formattedBullets = p.bullets.map((b) => (b.trim().startsWith('•') ? b : `• ${b}`)).join('\n');
-      const cardHeight = Math.max(100, 45 + p.bullets.length * 28);
+      const cardHeight = calculateCardHeight(p.name, p.role, p.period, p.bullets, 760, 12.5, 20);
       children.push({
         id: `widget-corp-proj-${idx}`,
         componentName: 'hj-[#exper-1]',
@@ -828,6 +899,7 @@ export function buildLegoSchemaFromResume(
 
     // 1. Summary
     addTimelineSectionTitle('// 01. 职业摘要', 'summary');
+    const sumH = calculateSummaryHeight(summary, 760, 12.5, 20);
     children.push({
       id: 'widget-summary-tl-content',
       componentName: 'hj-text-1',
@@ -836,7 +908,7 @@ export function buildLegoSchemaFromResume(
         left: 30,
         top: topPos,
         width: 760,
-        height: 55,
+        height: sumH,
         zIndex: 2,
         fontColor: '#334155',
         fontSize: 12.5,
@@ -845,7 +917,7 @@ export function buildLegoSchemaFromResume(
       },
       dataSource: { text: summary }
     });
-    topPos += 68;
+    topPos += sumH + 18;
 
     // 2. Core Skills
     addTimelineSectionTitle('// 02. 核心能力与技能工具', 'coreskills');
@@ -889,7 +961,7 @@ export function buildLegoSchemaFromResume(
 
     workList.forEach((w, idx) => {
       const formattedBullets = w.bullets.map((b) => (b.trim().startsWith('•') ? b : `• ${b}`)).join('\n');
-      const cardHeight = Math.max(85, 38 + w.bullets.length * 24);
+      const cardHeight = calculateCardHeight(w.company, w.role, w.period, w.bullets, 722, 12.5, 20);
 
       // Circle Node Dot
       children.push({
@@ -961,7 +1033,7 @@ export function buildLegoSchemaFromResume(
 
     projectList.forEach((p, idx) => {
       const formattedBullets = p.bullets.map((b) => (b.trim().startsWith('•') ? b : `• ${b}`)).join('\n');
-      const cardHeight = Math.max(85, 38 + p.bullets.length * 24);
+      const cardHeight = calculateCardHeight(p.name, p.role, p.period, p.bullets, 722, 12.5, 20);
 
       // Circle Node Dot
       children.push({
@@ -1282,6 +1354,7 @@ export function buildLegoSchemaFromResume(
 
     // 1. Summary
     addClassicSectionTitle('职业摘要', 'summary');
+    const sumH = calculateSummaryHeight(summary, 760, 12.5, 20);
     children.push({
       id: 'widget-summary-classic-content',
       componentName: 'hj-text-1',
@@ -1290,7 +1363,7 @@ export function buildLegoSchemaFromResume(
         left: 30,
         top: topPos,
         width: 760,
-        height: 55,
+        height: sumH,
         zIndex: 2,
         fontColor: '#334155',
         fontSize: 12.5,
@@ -1299,7 +1372,7 @@ export function buildLegoSchemaFromResume(
       },
       dataSource: { text: summary }
     });
-    topPos += 68;
+    topPos += sumH + 18;
 
     // 2. Core Skills
     addClassicSectionTitle('核心能力', 'coreskills');
@@ -1340,7 +1413,7 @@ export function buildLegoSchemaFromResume(
     addClassicSectionTitle('工作经历', 'work');
     workList.forEach((w, idx) => {
       const formattedBullets = w.bullets.map((b) => (b.trim().startsWith('•') ? b : `• ${b}`)).join('\n');
-      const cardHeight = Math.max(85, 38 + w.bullets.length * 24);
+      const cardHeight = calculateCardHeight(w.company, w.role, w.period, w.bullets, 760, 12.5, 20);
       children.push({
         id: `widget-work-classic-${idx}`,
         componentName: 'hj-[#exper-1]',
@@ -1373,7 +1446,7 @@ export function buildLegoSchemaFromResume(
     addClassicSectionTitle('项目经历', 'project');
     projectList.forEach((p, idx) => {
       const formattedBullets = p.bullets.map((b) => (b.trim().startsWith('•') ? b : `• ${b}`)).join('\n');
-      const cardHeight = Math.max(85, 38 + p.bullets.length * 24);
+      const cardHeight = calculateCardHeight(p.name, p.role, p.period, p.bullets, 760, 12.5, 20);
       children.push({
         id: `widget-project-classic-${idx}`,
         componentName: 'hj-[#exper-1]',
@@ -1573,14 +1646,15 @@ export function buildLegoSchemaFromResume(
   });
   topPos += 32;
 
+  const sumH = calculateSummaryHeight(summary, 760, 13, 21);
   children.push({
     id: 'widget-summary-content',
     componentName: 'hj-text-1',
     title: '职业摘要内容',
-    css: { left: 30, top: topPos, width: 760, height: 60, zIndex: 2, fontColor: '#334155', fontSize: 13, lineHeight: 1.6, textAlign: 'left' },
+    css: { left: 30, top: topPos, width: 760, height: sumH, zIndex: 2, fontColor: '#334155', fontSize: 13, lineHeight: 1.6, textAlign: 'left' },
     dataSource: { text: summary }
   });
-  topPos += 75;
+  topPos += sumH + 18;
 
   // 2. Core Skills
   children.push({
@@ -1638,7 +1712,7 @@ export function buildLegoSchemaFromResume(
 
   workList.forEach((w, idx) => {
     const formattedBullets = w.bullets.map((b) => (b.trim().startsWith('•') ? b : `• ${b}`)).join('\n');
-    const cardHeight = Math.max(100, 45 + w.bullets.length * 28);
+    const cardHeight = calculateCardHeight(w.company, w.role, w.period, w.bullets, 760, 12.5, 20);
     children.push({
       id: `widget-work-${idx}`,
       componentName: 'hj-[#exper-1]',
@@ -1680,7 +1754,7 @@ export function buildLegoSchemaFromResume(
 
   projectList.forEach((p, idx) => {
     const formattedBullets = p.bullets.map((b) => (b.trim().startsWith('•') ? b : `• ${b}`)).join('\n');
-    const cardHeight = Math.max(100, 45 + p.bullets.length * 28);
+    const cardHeight = calculateCardHeight(p.name, p.role, p.period, p.bullets, 760, 12.5, 20);
     children.push({
       id: `widget-project-${idx}`,
       componentName: 'hj-[#exper-1]',

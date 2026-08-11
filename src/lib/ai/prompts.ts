@@ -1,6 +1,7 @@
 import type {
   AnalysisResult,
   EvidenceStrength,
+  FollowUpQuestion,
   OptimizeStyle,
   UserInput,
 } from "@/types/resume";
@@ -61,7 +62,8 @@ export const ANALYSIS_JSON_SCHEMA = `{
     "question": string,
     "purpose": string,
     "userAnswer": "",
-    "generatedBullet": ""
+    "presetBullet": "AI 根据岗位 JD 提出的参考 Bullet 范例（动词开头+STAR法则+数据框架）",
+    "generatedBullet": "同 presetBullet 范例"
   }],
   "optimizedItems": [{
     "id": string,
@@ -145,7 +147,8 @@ export const ANALYSIS_CORE_SCHEMA = `{
     "question": string,
     "purpose": string,
     "userAnswer": "",
-    "generatedBullet": ""
+    "presetBullet": "AI 根据岗位 JD 拟定的标准参考 Bullet 范例（动词开头+STAR法则+建议量化框架）",
+    "generatedBullet": "AI 根据岗位 JD 拟定的标准参考 Bullet 范例（同 presetBullet，绝勿留空）"
   }]
 }`;
 
@@ -241,11 +244,12 @@ ${buildInputContext(input)}
     "question": string,
     "purpose": string,
     "userAnswer": "",
-    "generatedBullet": ""
+    "presetBullet": "AI 根据岗位 JD 拟定的标准参考 Bullet 范例（动词开头+STAR法则+建议量化框架）",
+    "generatedBullet": "AI 根据岗位 JD 拟定的标准参考 Bullet 范例（同 presetBullet，绝勿留空）"
   }]
 }
 
-要求：followUpQuestions 5-7 条，id 为 fu-1...；matchItems 6-8 条。`;
+要求：followUpQuestions 5-7 条，id 为 fu-1...；matchItems 6-8 条。特别注意：每条 followUpQuestion 的 presetBullet 与 generatedBullet 必须填入结合该岗位 JD 拟定好的【参考 Bullet 范例】，包含建议量化成果，切勿输出空字符串！`;
 }
 
 export function buildAnalyzeOutputPrompt(
@@ -466,6 +470,28 @@ ${sanitizeUserText(rawContent, 10000)}
 输出 JSON：{ "html": string }`;
 }
 
+export function normalizeFollowUpQuestions(
+  items?: Array<Partial<FollowUpQuestion>>
+): FollowUpQuestion[] {
+  if (!items || !Array.isArray(items)) return [];
+  return items.map((item, index) => {
+    const questionText = item.question || "";
+    const purposeText = item.purpose || "";
+    const fallbackBullet = questionText
+      ? `针对“${purposeText || "能力与经验缺口"}”，主导核心模块规划与落地，结合岗位要求完善业务逻辑与量化指标，确保项目按期高质量交付。`
+      : "主导相关业务模块落地与优化，按期交付高品质产出并建立标准化协作机制。";
+    const preset = (item.presetBullet || item.generatedBullet || "").trim() || fallbackBullet;
+    return {
+      id: item.id || `fu-${index + 1}`,
+      question: questionText,
+      purpose: purposeText,
+      userAnswer: item.userAnswer || "",
+      presetBullet: preset,
+      generatedBullet: (item.generatedBullet || "").trim() || preset,
+    };
+  });
+}
+
 export function normalizeAnalysisResult(raw: AnalysisResult, input?: UserInput): AnalysisResult {
   return {
     jdAnalysis: {
@@ -499,13 +525,7 @@ export function normalizeAnalysisResult(raw: AnalysisResult, input?: UserInput):
       needsSupplement: Boolean(item.needsSupplement),
       optimizationSuggestion: item.optimizationSuggestion ?? "",
     })),
-    followUpQuestions: (raw.followUpQuestions ?? []).map((item, index) => ({
-      id: item.id || `fu-${index + 1}`,
-      question: item.question ?? "",
-      purpose: item.purpose ?? "",
-      userAnswer: item.userAnswer ?? "",
-      generatedBullet: item.generatedBullet ?? "",
-    })),
+    followUpQuestions: normalizeFollowUpQuestions(raw.followUpQuestions),
     optimizedItems: (raw.optimizedItems ?? []).map((item, index) => ({
       id: item.id || `opt-${index + 1}`,
       section: item.section ?? "",

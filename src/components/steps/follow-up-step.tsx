@@ -39,22 +39,13 @@ export function FollowUpStep() {
 
   const { followUpQuestions } = analysisResult;
 
-  // Collect all non-empty generated bullets
-  const answeredCount = followUpQuestions.filter(
-    (q) => (q.userAnswer || "").trim().length > 0
-  ).length;
-  const generatedCount = followUpQuestions.filter(
-    (q) => (q.generatedBullet || "").trim().length > 0
-  ).length;
-
   const generatedBullets = followUpQuestions
-    .filter((q) => (q.generatedBullet || "").trim())
-    .map((q) => ({ purpose: q.purpose, bullet: q.generatedBullet }));
+    .filter((q) => (q.generatedBullet || q.presetBullet || "").trim())
+    .map((q) => ({ purpose: q.purpose, bullet: q.generatedBullet || q.presetBullet || "" }));
 
   const handleGenerateBullet = async (id: string) => {
     const question = followUpQuestions.find((q) => q.id === id);
     if (!question || !(question.userAnswer || "").trim()) return;
-
 
     setLoadingId(id);
     setError(null);
@@ -135,6 +126,7 @@ export function FollowUpStep() {
       <div className="mb-6 space-y-5">
         {followUpQuestions.map((q, index) => {
           const isCustom = customGeneratedIds.has(q.id);
+          const activeBullet = q.generatedBullet || q.presetBullet || "";
 
           return (
             <Card key={q.id} className="overflow-hidden border-neutral-200/80 shadow-2xs">
@@ -162,10 +154,10 @@ export function FollowUpStep() {
                     <Label htmlFor={`answer-${q.id}`} className="text-xs font-semibold text-neutral-700">
                       你的回答（填写您的真实业务细节、数据或做法）
                     </Label>
-                    {!q.userAnswer && q.generatedBullet && (
+                    {activeBullet && (
                       <button
                         type="button"
-                        onClick={() => updateFollowUpAnswer(q.id, q.generatedBullet)}
+                        onClick={() => updateFollowUpAnswer(q.id, activeBullet)}
                         className="text-[11px] text-blue-600 hover:text-blue-700 font-medium hover:underline flex items-center gap-1"
                       >
                         <Wand2 className="h-3 w-3" />
@@ -205,7 +197,7 @@ export function FollowUpStep() {
                 </div>
 
                 {/* Bullet Display Card with clear visual distinction */}
-                {q.generatedBullet && (
+                {activeBullet && (
                   <div
                     className={`rounded-lg p-3.5 transition-all ${
                       isCustom
@@ -222,7 +214,7 @@ export function FollowUpStep() {
                               : "bg-blue-100 text-blue-800 border border-blue-200"
                           }`}
                         >
-                          {isCustom ? "✨ 专属定制 Bullet" : "💡 AI 推荐参考 Bullet（范例）"}
+                          {isCustom ? "✨ 专属定制 Bullet" : "💡 AI 预设参考 Bullet（范例）"}
                         </span>
                         <span className="text-[11px] text-neutral-400">
                           {isCustom ? "已基于您的回答精炼合成" : "系统根据目标 JD 拟定的标准写作规范"}
@@ -230,7 +222,7 @@ export function FollowUpStep() {
                       </div>
                     </div>
                     <p className="text-sm leading-relaxed font-medium text-neutral-800">
-                      {q.generatedBullet}
+                      {activeBullet}
                     </p>
                   </div>
                 )}
@@ -246,10 +238,10 @@ export function FollowUpStep() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-blue-900">
-                已生成 {generatedBullets.length} 条 bullet
+                已可应用 {generatedBullets.length} 条 bullet 补强履历
               </p>
               <p className="text-xs text-blue-700">
-                点击应用后，追问补充的经历将融入简历优化和最终简历中
+                点击应用后，包含预设范例与专属定制的 Bullet 将全量融进后续简历优化与成品导出中
               </p>
             </div>
             <Button

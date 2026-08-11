@@ -103,6 +103,7 @@ export interface FollowUpQuestion {
   purpose: string;
   userAnswer: string;
   generatedBullet: string;
+  presetBullet?: string;
 }
 
 export type OptimizeStyle =

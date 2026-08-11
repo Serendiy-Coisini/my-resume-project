@@ -11,6 +11,7 @@ import {
   buildOptimizeUserPrompt,
   buildReoptimizeWithBulletsPrompt,
   normalizeAnalysisResult,
+  normalizeFollowUpQuestions,
   normalizeOptimizedItems,
 } from "@/lib/ai/prompts";
 import type { FollowUpBulletEntry } from "@/lib/ai/prompts";
@@ -85,13 +86,16 @@ export async function runLLMResumeAnalysisStream(
     maxTokens: 4000,
     schema: diagnosisMatchResponseSchema,
   });
+
+  const normalizedFollowUpQuestions = normalizeFollowUpQuestions(diagnosisMatch.followUpQuestions);
+
   onStageUpdate?.({
     stage: "diagnosis",
     status: "complete",
     data: {
       diagnosis: diagnosisMatch.diagnosis,
       matchItems: diagnosisMatch.matchItems,
-      followUpQuestions: diagnosisMatch.followUpQuestions,
+      followUpQuestions: normalizedFollowUpQuestions,
     },
   });
 
@@ -136,7 +140,7 @@ export async function runLLMResumeAnalysisStream(
     jdAnalysis: jd.jdAnalysis,
     diagnosis: diagnosisMatch.diagnosis,
     matchItems: diagnosisMatch.matchItems,
-    followUpQuestions: diagnosisMatch.followUpQuestions,
+    followUpQuestions: normalizedFollowUpQuestions,
     optimizedItems: optimizeResume.optimizedItems,
     finalResume: optimizeResume.finalResume,
     interviewPrep: interview.interviewPrep,

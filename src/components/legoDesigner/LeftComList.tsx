@@ -41,7 +41,7 @@ export const LeftComList: React.FC<LeftComListProps> = ({
   onToggleCollapse
 }) => {
   const [activeTab, setActiveTab] = useState<'widgets' | 'modules' | 'layers' | 'json' | 'templates'>('widgets');
-  const { schema, selectedWidgetId, addWidget, setSelectedWidgetId, deleteWidget, moveWidgetLayer, savedTemplates, loadSavedTemplate, deleteSavedTemplate } =
+  const { schema, selectedWidgetId, addWidget, addWidgets, setSelectedWidgetId, deleteWidget, moveWidgetLayer, savedTemplates, loadSavedTemplate, deleteSavedTemplate } =
     useLegoDesignerStore();
   const { userInput } = useResumeStore();
 
@@ -55,13 +55,29 @@ export const LeftComList: React.FC<LeftComListProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const getCanvasNextY = () => {
+    const children = schema.componentsTree[0]?.children || [];
+    if (children.length === 0) return 40;
+    let maxY = 40;
+    children.forEach((w) => {
+      const top = Number(w.css.top) || 0;
+      const height = Number(w.css.height) || 40;
+      const bottom = top + height;
+      if (bottom > maxY) {
+        maxY = bottom;
+      }
+    });
+    return maxY + 24;
+  };
+
   // Helper to add structured resume modules
   const handleAddModule = (moduleKey: string) => {
-    const nextY = Math.max(100, (schema.componentsTree[0]?.children.length || 0) * 80 + 120);
+    const nextY = getCanvasNextY();
+    const newWidgets: IWidget[] = [];
 
     switch (moduleKey) {
       case 'BASE_INFO':
-        addWidget({
+        newWidgets.push({
           id: '',
           componentName: 'hj-text-2',
           title: '基本资料块',
@@ -81,7 +97,7 @@ export const LeftComList: React.FC<LeftComListProps> = ({
         break;
 
       case 'WORK_EXPERIENCE':
-        addWidget({
+        newWidgets.push({
           id: '',
           componentName: 'hj-text-8',
           title: '工作经验标题',
@@ -101,7 +117,7 @@ export const LeftComList: React.FC<LeftComListProps> = ({
           },
           dataSource: { text: '▌ 工作经验 WORK EXPERIENCE' }
         });
-        addWidget({
+        newWidgets.push({
           id: '',
           componentName: 'hj-[#exper-1]',
           title: '工作经历条目',
@@ -109,7 +125,7 @@ export const LeftComList: React.FC<LeftComListProps> = ({
             left: 40,
             top: nextY + 45,
             width: 740,
-            height: 100,
+            height: 120,
             zIndex: 2,
             fontColor: '#334155',
             fontSize: 13,
@@ -125,7 +141,7 @@ export const LeftComList: React.FC<LeftComListProps> = ({
         break;
 
       case 'PROJECT_EXPERIENCE':
-        addWidget({
+        newWidgets.push({
           id: '',
           componentName: 'hj-text-8',
           title: '项目经验标题',
@@ -145,7 +161,7 @@ export const LeftComList: React.FC<LeftComListProps> = ({
           },
           dataSource: { text: '▌ 项目经验 PROJECT EXPERIENCE' }
         });
-        addWidget({
+        newWidgets.push({
           id: '',
           componentName: 'hj-[#exper-1]',
           title: '项目经历条目',
@@ -153,7 +169,7 @@ export const LeftComList: React.FC<LeftComListProps> = ({
             left: 40,
             top: nextY + 45,
             width: 740,
-            height: 90,
+            height: 110,
             zIndex: 2,
             fontColor: '#334155',
             fontSize: 13,
@@ -169,7 +185,7 @@ export const LeftComList: React.FC<LeftComListProps> = ({
         break;
 
       case 'EDU_BACKGROUND':
-        addWidget({
+        newWidgets.push({
           id: '',
           componentName: 'hj-text-8',
           title: '教育背景标题',
@@ -189,7 +205,7 @@ export const LeftComList: React.FC<LeftComListProps> = ({
           },
           dataSource: { text: '▌ 教育背景 EDUCATION' }
         });
-        addWidget({
+        newWidgets.push({
           id: '',
           componentName: 'hj-[#exper-1]',
           title: '教育经历条目',
@@ -197,7 +213,7 @@ export const LeftComList: React.FC<LeftComListProps> = ({
             left: 40,
             top: nextY + 45,
             width: 740,
-            height: 60,
+            height: 70,
             zIndex: 2,
             fontColor: '#334155',
             fontSize: 13
@@ -212,7 +228,7 @@ export const LeftComList: React.FC<LeftComListProps> = ({
         break;
 
       case 'SKILL_SPECIALTIES':
-        addWidget({
+        newWidgets.push({
           id: '',
           componentName: 'hj-text-8',
           title: '技能特长标题',
@@ -232,7 +248,7 @@ export const LeftComList: React.FC<LeftComListProps> = ({
           },
           dataSource: { text: '▌ 技能特长 SKILLS & TOOLS' }
         });
-        addWidget({
+        newWidgets.push({
           id: '',
           componentName: 'hj-text-6',
           title: '技能详情',
@@ -251,7 +267,7 @@ export const LeftComList: React.FC<LeftComListProps> = ({
         break;
 
       case 'SELF_EVALUATION':
-        addWidget({
+        newWidgets.push({
           id: '',
           componentName: 'hj-text-8',
           title: '自我评价标题',
@@ -271,7 +287,7 @@ export const LeftComList: React.FC<LeftComListProps> = ({
           },
           dataSource: { text: '▌ 自我评价 SUMMARY' }
         });
-        addWidget({
+        newWidgets.push({
           id: '',
           componentName: 'hj-text-6',
           title: '自我评价内容',
@@ -290,7 +306,7 @@ export const LeftComList: React.FC<LeftComListProps> = ({
         break;
 
       case 'AWARDS':
-        addWidget({
+        newWidgets.push({
           id: '',
           componentName: 'hj-text-8',
           title: '荣誉奖项标题',
@@ -310,7 +326,7 @@ export const LeftComList: React.FC<LeftComListProps> = ({
           },
           dataSource: { text: '▌ 荣誉奖项 HONORS & AWARDS' }
         });
-        addWidget({
+        newWidgets.push({
           id: '',
           componentName: 'hj-text-6',
           title: '奖项列表',
@@ -330,6 +346,10 @@ export const LeftComList: React.FC<LeftComListProps> = ({
 
       default:
         break;
+    }
+
+    if (newWidgets.length > 0) {
+      addWidgets(newWidgets);
     }
   };
 

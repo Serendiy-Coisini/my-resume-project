@@ -55,29 +55,37 @@ function getCommonStyles(): string {
   return `
     <style>
       @page {
-        size: A4;
-        margin: 10mm 12mm 18mm 12mm;
+        size: A4 portrait;
+        margin: 12mm 14mm 16mm 14mm;
       }
       * {
         box-sizing: border-box;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
-        color: #1e293b;
+      html, body {
+        width: 100%;
+        height: auto !important;
         background-color: #ffffff;
+        color: #1e293b;
         margin: 0;
         padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
         font-size: 13px;
         line-height: 1.6;
+        overflow: visible !important;
       }
+      body {
+        padding-bottom: 10mm;
+      }
+
+      /* Header styling with print break avoidance */
       .doc-header {
         border-bottom: 2px solid #3b82f6;
         padding-bottom: 14px;
         margin-bottom: 20px;
-        page-break-after: avoid;
-        break-after: avoid;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .header-main {
         margin-bottom: 12px;
@@ -139,19 +147,21 @@ function getCommonStyles(): string {
         color: #1e293b;
       }
 
-      /* Sections & Cards */
+      /* Sections */
       .section-block {
-        margin-bottom: 20px;
+        margin-bottom: 24px;
       }
       .section-title-wrap {
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
         border-left: 4px solid #3b82f6;
         padding-left: 8px;
-        page-break-after: avoid;
-        break-after: avoid;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .section-title {
         font-size: 15px;
@@ -159,24 +169,51 @@ function getCommonStyles(): string {
         color: #0f172a;
         margin: 0;
       }
+
+      /* Card Grids - Flexbox structure to ensure clean multi-column print pagination */
       .card-grid-2 {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
         gap: 12px;
+        margin-bottom: 12px;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
+      .card-grid-2 > .card-box {
+        width: calc(50% - 6px);
+        margin-bottom: 0;
+      }
+
       .card-grid-3 {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
         gap: 12px;
+        margin-bottom: 12px;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
+      .card-grid-3 > .card-box {
+        width: calc(33.333% - 8px);
+        margin-bottom: 0;
+      }
+
+      /* Card Boxes - Atomic blocks that never cut in half across page boundaries */
       .card-box {
         background: #ffffff;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
-        padding: 12px;
-        page-break-inside: avoid;
-        break-inside: avoid;
+        padding: 12px 14px;
+        margin-bottom: 12px;
+        overflow: visible;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        box-sizing: border-box;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
+
       .card-box-header {
         font-size: 13px;
         font-weight: 700;
@@ -185,16 +222,21 @@ function getCommonStyles(): string {
         display: flex;
         align-items: center;
         justify-content: space-between;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
       }
 
       /* Lists & Badges */
       ul.styled-list {
         margin: 0;
-        padding-left: 16px;
+        padding-left: 18px;
       }
       ul.styled-list li {
-        margin-bottom: 5px;
+        margin-bottom: 6px;
         color: #334155;
+        line-height: 1.6;
+        word-break: break-word;
+        overflow-wrap: break-word;
       }
       .tag-cloud {
         display: flex;
@@ -234,19 +276,29 @@ function getCommonStyles(): string {
         margin-top: 6px;
         font-size: 12px;
       }
+      table.data-table thead {
+        display: table-header-group;
+      }
       table.data-table th {
         background: #f8fafc;
         color: #475569;
         font-weight: 600;
         text-align: left;
-        padding: 8px;
+        padding: 8px 10px;
         border-bottom: 2px solid #e2e8f0;
       }
       table.data-table td {
-        padding: 8px;
+        padding: 8px 10px;
         border-bottom: 1px solid #e2e8f0;
         vertical-align: top;
         color: #334155;
+        line-height: 1.5;
+        word-break: break-word;
+        overflow-wrap: break-word;
+      }
+      table.data-table tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       table.data-table tr:nth-child(even) td {
         background: #fafafa;
@@ -262,6 +314,8 @@ function getCommonStyles(): string {
         border-radius: 8px;
         padding: 14px 18px;
         margin-bottom: 16px;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .score-circle {
         display: flex;
@@ -273,7 +327,7 @@ function getCommonStyles(): string {
         border-radius: 50%;
         width: 70px;
         height: 70px;
-        shrink: 0;
+        flex-shrink: 0;
         box-shadow: 0 2px 4px rgba(59, 130, 246, 0.15);
       }
       .score-num {
@@ -299,6 +353,7 @@ function getCommonStyles(): string {
         margin: 0;
         font-size: 11px;
         color: #475569;
+        line-height: 1.5;
       }
 
       /* Progress Bar */
@@ -324,8 +379,8 @@ function getCommonStyles(): string {
         border-radius: 6px;
         padding: 10px 14px;
         margin-bottom: 10px;
-        page-break-inside: avoid;
-        break-inside: avoid;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .qa-q {
         font-weight: 700;
@@ -341,38 +396,72 @@ function getCommonStyles(): string {
         border-radius: 4px;
         margin-bottom: 6px;
         border: 1px solid #f1f5f9;
+        line-height: 1.6;
+        word-break: break-word;
       }
       .qa-evidence {
         font-size: 11px;
         color: #64748b;
       }
 
-      .pdf-fixed-footer {
-        position: fixed;
-        bottom: -14mm;
-        left: 0;
-        right: 0;
-        height: 10mm;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-        background: #ffffff;
-        font-size: 10px;
-        color: #94a3b8;
-        border-top: 1px solid #e2e8f0;
-        padding-top: 3px;
-        z-index: 9999;
-        pointer-events: none;
-      }
-
       .footer-note {
-        margin-top: 30px;
+        margin-top: 24px;
         padding-top: 10px;
         border-top: 1px dashed #cbd5e1;
         text-align: center;
         font-size: 10px;
         color: #94a3b8;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+
+      .pdf-fixed-footer {
+        display: none;
+      }
+
+      @media print {
+        @page {
+          size: A4 portrait;
+          margin: 12mm 14mm 16mm 14mm;
+        }
+        html, body {
+          width: 100% !important;
+          height: auto !important;
+          overflow: visible !important;
+        }
+        .card-grid-2, .card-grid-3 {
+          display: flex !important;
+          flex-direction: row !important;
+          flex-wrap: wrap !important;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        .card-grid-2 > .card-box {
+          width: calc(50% - 6px) !important;
+        }
+        .card-grid-3 > .card-box {
+          width: calc(33.333% - 8px) !important;
+        }
+        .card-box, .qa-card, .score-banner, .doc-header {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        .pdf-fixed-footer {
+          display: flex !important;
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 8mm;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          background: #ffffff;
+          font-size: 10px;
+          color: #94a3b8;
+          border-top: 1px solid #e2e8f0;
+          z-index: 9999;
+        }
       }
     </style>
   `;
@@ -431,7 +520,7 @@ export function renderJDAnalysisHTML(jdAnalysis: JDAnalysis): string {
         <h2 class="section-title">一、 JD 目标岗位深度解析</h2>
       </div>
 
-      <div class="card-grid-2" style="margin-bottom: 12px;">
+      <div class="card-grid-2">
         <div class="card-box">
           <div class="card-box-header">📌 岗位职责</div>
           <ul class="styled-list">${respItems || "<li>无</li>"}</ul>
@@ -442,7 +531,7 @@ export function renderJDAnalysisHTML(jdAnalysis: JDAnalysis): string {
         </div>
       </div>
 
-      <div class="card-grid-2" style="margin-bottom: 12px;">
+      <div class="card-grid-2">
         <div class="card-box">
           <div class="card-box-header">💡 隐性要求</div>
           <ul class="styled-list">${implItems || "<li>无</li>"}</ul>
@@ -453,9 +542,9 @@ export function renderJDAnalysisHTML(jdAnalysis: JDAnalysis): string {
         </div>
       </div>
 
-      <div class="card-box" style="margin-bottom: 12px;">
+      <div class="card-box">
         <div class="card-box-header">👤 理想候选人画像</div>
-        <p style="margin: 0; color: #334155; font-size: 12px; line-height: 1.6;">${jdAnalysis.idealCandidate || "暂无"}</p>
+        <p style="margin: 0; color: #334155; font-size: 12px; line-height: 1.6; word-break: break-word;">${jdAnalysis.idealCandidate || "暂无"}</p>
       </div>
 
       <div class="card-box">
@@ -556,7 +645,7 @@ export function renderDiagnosisAndMatchHTML(
         </div>
       </div>
 
-      <div class="card-grid-2" style="margin-bottom: 12px;">
+      <div class="card-grid-2">
         <div class="card-box">
           <div class="card-box-header">📊 各维度评分与点评</div>
           ${dimProgress || "暂无"}
@@ -572,7 +661,7 @@ export function renderDiagnosisAndMatchHTML(
       ${
         matchItems && matchItems.length > 0
           ? `
-        <div class="card-box" style="margin-bottom: 12px;">
+        <div class="card-box">
           <div class="card-box-header">⚖️ JD 要求 vs 简历证据 深度对照表</div>
           <table class="data-table">
             <thead>
@@ -647,12 +736,12 @@ export function renderInterviewPrepHTML(interviewPrep: InterviewPrep): string {
         <h2 class="section-title">三、 目标岗位面试准备与答辩指南</h2>
       </div>
 
-      <div class="card-box" style="margin-bottom: 12px; background: #faf5ff; border-color: #e9d5ff;">
+      <div class="card-box" style="background: #faf5ff; border-color: #e9d5ff;">
         <div class="card-box-header" style="color: #6b21a8;">🎙️ 1-3 分钟定制自我介绍脚本</div>
         <p style="margin: 0; font-size: 12px; color: #4c1d95; line-height: 1.7; white-space: pre-wrap;">${interviewPrep.selfIntroduction || "暂无自我介绍脚本"}</p>
       </div>
 
-      <div style="margin-bottom: 12px;">
+      <div style="margin-bottom: 12px; page-break-inside: avoid; break-inside: avoid;">
         <div class="card-box-header" style="margin-bottom: 8px;">❓ 预测面试官高频追问（10 题）与实战参考回答</div>
         ${qaCards || "<p style='color: #64748b;'>暂无追问预测</p>"}
       </div>

@@ -71,6 +71,7 @@ const followUpQuestionSchema = z.object({
   purpose: z.string().catch(""),
   userAnswer: z.string().catch(""),
   generatedBullet: z.string().catch(""),
+  presetBullet: z.string().optional().catch(""),
 });
 
 const optimizedItemSchema = z.object({

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Settings, ChevronRight, Check, Loader2, Eye, EyeOff,
-  Sparkles, ExternalLink, AlertCircle, ArrowLeft, Zap,
+  Sparkles, ExternalLink, AlertCircle, ArrowLeft, Zap, RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,7 +82,29 @@ export default function SettingsPage() {
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
   const [showGuide, setShowGuide] = useState(true);
+
+  useEffect(() => {
+    async function loadConfig() {
+      try {
+        const res = await fetch("/api/settings");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            if (data.providerId) setSelectedProvider(data.providerId);
+            if (data.apiKey) setApiKey(data.apiKey);
+            if (data.baseUrl) setCustomBaseUrl(data.baseUrl);
+            if (data.model) setCustomModel(data.model);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load settings:", err);
+      }
+    }
+    loadConfig();
+  }, []);
 
   const provider = PROVIDERS.find((p) => p.id === selectedProvider);
 
@@ -107,6 +129,29 @@ export default function SettingsPage() {
     }
   };
 
+  const handleReset = async () => {
+    if (!confirm("确定要清空并重置当前保存的 AI API Key 及相关配置吗？")) {
+      return;
+    }
+    setResetting(true);
+    try {
+      const res = await fetch("/api/settings", { method: "DELETE" });
+      if (res.ok) {
+        setApiKey("");
+        setCustomBaseUrl("");
+        setCustomModel("");
+        setSelectedProvider("deepseek");
+        setTestResult(null);
+        setResetSuccess(true);
+        setTimeout(() => setResetSuccess(false), 4000);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!apiKey.trim()) return;
     setSaving(true);
@@ -117,7 +162,13 @@ export default function SettingsPage() {
       const res = await fetch("/api/settings/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey: apiKey.trim(), baseUrl, model, provider: providerType }),
+        body: JSON.stringify({
+          apiKey: apiKey.trim(),
+          baseUrl,
+          model,
+          provider: providerType,
+          providerId: selectedProvider,
+        }),
       });
       if (res.ok) {
         setSaved(true);
@@ -299,6 +350,16 @@ export default function SettingsPage() {
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                 {saved ? "已保存 ✓" : "保存配置"}
               </Button>
+              <Button
+                type="button"
+                onClick={handleReset}
+                disabled={resetting}
+                variant="outline"
+                className="w-full sm:w-auto bg-rose-950/30 hover:bg-rose-900/50 border-rose-800/60 text-rose-300 hover:text-rose-200 font-semibold h-12 px-5 gap-2 justify-center transition-all"
+              >
+                {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4 text-rose-400" />}
+                {resetSuccess ? "已重置 ✓" : "清空重置"}
+              </Button>
             </div>
 
 
@@ -337,16 +398,28 @@ export default function SettingsPage() {
           <h3 className="text-lg font-bold text-slate-200 mb-4">常见问题</h3>
           <div className="space-y-4 text-sm">
             <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
+              <div className="font-bold text-slate-200">Q: 界面顶部的「Mock · 未配置 LLM_API_KEY」是什么模式？</div>
+              <div className="text-slate-300 mt-1">A: <strong>Mock 模式（演示与离线模拟数据模式）</strong>：当您未配置 API Key 时系统自动开启该模式。它无需填 Key、不消耗 Token、不花任何费用，内置了一套高保真专业简历的离线诊断与改写范例，让您可以零门槛完整体验诊断对齐、启发式追问、积木排版与 PDF 导出的全流程。配置并保存自己的 API Key 后，系统会自动无缝切换至真实大模型实时分析重构模式。</div>
+            </div>
+            <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
               <div className="font-bold text-slate-200">Q: 使用自己的 API Key 大概需要多少费用？</div>
-              <div className="text-slate-300 mt-1">A: 深度分析一份完整简历大约消耗 3000-5000 Token。以 DeepSeek 为例，分析一次成本仅约 0.01 元，非常便宜！</div>
+              <div className="text-slate-300 mt-1">A: 深度分析一份完整简历（包括 JD 拆解、缺口分析、启发式追问与 STAR 改写）大约消耗 3000~6000 Token。以 DeepSeek 为例，单次分析成本仅约 0.01~0.03 元，非常便宜！</div>
             </div>
             <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
-              <div className="font-bold text-slate-200">Q: 我的 API Key 安全吗？</div>
-              <div className="text-slate-300 mt-1">A: 完全安全。API Key 仅保存在你自己电脑本地的配置文件中，绝不会发送或上传给任何第三方服务器。</div>
+              <div className="font-bold text-slate-200">Q: 我的 API Key 安全吗？会泄露给第三方吗？</div>
+              <div className="text-slate-300 mt-1">A: 完全安全。API Key 仅保存在你自己电脑本地浏览器存储或私有配置文件（.env.local）中，绝不会被上传、共享或出售给任何第三方服务器。</div>
             </div>
             <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
-              <div className="font-bold text-slate-200">Q: 推荐使用哪个 AI 服务商？</div>
-              <div className="text-slate-300 mt-1">A: 推荐使用 DeepSeek，注册即赠送免费 Token 额度，且逻辑分析能力极高，性价比第一！</div>
+              <div className="font-bold text-slate-200">Q: 推荐使用哪个 AI 大模型服务商？</div>
+              <div className="text-slate-300 mt-1">A: 强烈推荐使用 DeepSeek（DeepSeek-V3 / R1），逻辑推理与履历诊断表达能力极其出彩，且 Token 价格便宜。系统也原生支持 OpenAI (GPT-4o)、Kimi (Moonshot)、阿里通义千问及 SiliconFlow。</div>
+            </div>
+            <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
+              <div className="font-bold text-slate-200">Q: 如果出现 API 连通测试失败该如何排查？</div>
+              <div className="text-slate-300 mt-1">A: 请检查 API Key 是否存在前后空格、账号余额是否充足、BaseURL 格式是否正确。在国内网络环境下，推荐优先选择 DeepSeek 或阿里通义千问等无需特殊网络代理的服务商。</div>
+            </div>
+            <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
+              <div className="font-bold text-slate-200">Q: 不配置 API Key 是否可以正常体验与导出？</div>
+              <div className="text-slate-300 mt-1">A: 可以！系统内置 Demo / Mock 体验模式。在未配置 Key 时，你依然可以完整体验积木设计器（Lego Designer）排版与高清矢量 PDF 导出功能。</div>
             </div>
           </div>
         </div>

@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const { apiKey, baseUrl, model, provider } = await req.json();
+    const { apiKey, baseUrl, model, provider, providerId } = await req.json();
 
     if (!apiKey?.trim()) {
       return NextResponse.json({ error: "API Key 不能为空" }, { status: 400 });
@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
     if (baseUrl) updates.LLM_BASE_URL = baseUrl;
     if (model) updates.LLM_MODEL = model;
     if (provider) updates.LLM_PROVIDER = provider;
+    if (providerId) updates.LLM_PROVIDER_ID = providerId;
 
     for (const [key, value] of Object.entries(updates)) {
       const regex = new RegExp(`^${key}=.*$`, "m");
@@ -44,6 +45,7 @@ export async function POST(req: NextRequest) {
     if (baseUrl) process.env.LLM_BASE_URL = baseUrl;
     if (model) process.env.LLM_MODEL = model;
     if (provider) process.env.LLM_PROVIDER = provider;
+    if (providerId) process.env.LLM_PROVIDER_ID = providerId;
 
     return NextResponse.json({
       success: true,

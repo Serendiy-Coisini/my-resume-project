@@ -6,7 +6,6 @@ import { RightSetter } from './RightSetter';
 import { useLegoDesignerStore } from '@/store/lego-designer-store';
 import { useResumeStore } from '@/store/resume-store';
 import { buildLegoSchemaFromResume } from '@/lib/lego-adapter';
-import { PRESET_TEMPLATES } from '@/lib/preset-templates';
 import { Layout, PlusCircle, Settings } from 'lucide-react';
 
 export interface LegoDesignerProps {
@@ -30,21 +29,18 @@ export const LegoDesigner: React.FC<LegoDesignerProps> = ({ standalone }) => {
   const [isResizingRight, setIsResizingRight] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
-    if (!hasInitializedRef.current) {
-      hasInitializedRef.current = true;
-      if (!standalone) {
-        // Auto populate Lego Canvas with AI-optimized resume data on initial load
+    if (!standalone) {
+      // Auto populate Lego Canvas with AI-optimized resume data when template or analysisResult changes
+      const initialSchema = buildLegoSchemaFromResume(userInput, analysisResult, selectedTemplate, templateOptions, customTemplateHTML);
+      setSchema(initialSchema, false);
+    } else {
+      // In standalone mode, if canvas has no widgets, populate with default template built schema
+      const currentChildren = schema.componentsTree?.[0]?.children || [];
+      if (currentChildren.length === 0) {
         const initialSchema = buildLegoSchemaFromResume(userInput, analysisResult, selectedTemplate, templateOptions, customTemplateHTML);
         setSchema(initialSchema, false);
-      } else {
-        // In standalone mode, if canvas has no widgets, populate with default classic preset template
-        const currentChildren = schema.componentsTree?.[0]?.children || [];
-        if (currentChildren.length === 0) {
-          setSchema(PRESET_TEMPLATES[0].schema, false);
-        }
       }
     }
 

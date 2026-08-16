@@ -7,10 +7,18 @@ function resolveEffectiveTemplateId(
   templateId: TemplateId,
   customTemplateHTML?: string
 ): TemplateId {
+  if (templateId === ('classic' as TemplateId)) return 'classic-minimal';
   if (templateId !== 'custom') return templateId;
   if (!customTemplateHTML) return 'modern-sidebar';
 
   const htmlLower = customTemplateHTML.toLowerCase();
+  if (
+    htmlLower.includes('layout-minimal') ||
+    htmlLower.includes('minimal') ||
+    htmlLower.includes('fresh')
+  ) {
+    return 'minimal';
+  }
   if (
     htmlLower.includes('layout-single-column') ||
     htmlLower.includes('header-center') ||
@@ -111,6 +119,406 @@ function calculateSummaryHeight(
   return Math.max(45, Math.ceil(totalLines * lineHeightPx + 16));
 }
 
+export function fillAiDataIntoExistingSchema(
+  currentSchema: IHJSchema,
+  userInput: UserInput,
+  analysisResult?: AnalysisResult | null
+): IHJSchema {
+  if (!currentSchema || !currentSchema.componentsTree || currentSchema.componentsTree.length === 0) {
+    return buildLegoSchemaFromResume(userInput, analysisResult);
+  }
+
+  const finalResume = analysisResult?.finalResume;
+  const name = finalResume?.personalInfo?.name || '求职者';
+  const jobIntent = finalResume?.jobIntent || userInput.targetRole || '软件工程师';
+  const email = finalResume?.personalInfo?.email || 'user@example.com';
+  const phone = finalResume?.personalInfo?.phone || '138-0000-0000';
+  const location = finalResume?.personalInfo?.location || '北京';
+
+  const summary =
+    finalResume?.summary ||
+    userInput.additionalInfo ||
+    '具备扎实的专业基础与丰富的项目实践经验，善于解决复杂工程难题，注重团队协同与效率产出。';
+
+  const workList = finalResume?.workExperience && finalResume.workExperience.length > 0
+    ? finalResume.workExperience
+    : [
+        {
+          company: '科技创新有限公司',
+          role: jobIntent,
+          period: '2022.03 - 至今',
+          bullets: [
+            '主导核心模块架构重构，提升业务处理吞吐量超过 35%。',
+            '跨团队协同推进项目落地，保障上线按时交付率达到 98%。'
+          ]
+        }
+      ];
+
+  const projectList = finalResume?.projectExperience && finalResume.projectExperience.length > 0
+    ? finalResume.projectExperience
+    : [
+        {
+          name: '高并发业务中台升级',
+          role: '核心研发工程师',
+          period: '2023.01 - 2023.08',
+          bullets: [
+            '设计实现分布缓存方案，压测 QPS 提升至 10,000+。',
+            '编写自动化测试套件，降低测试缺陷遗留率 40%。'
+          ]
+        }
+      ];
+
+  const skills = (finalResume?.coreSkills && finalResume.coreSkills.length > 0)
+    ? finalResume.coreSkills
+    : (finalResume?.skillsAndTools && finalResume.skillsAndTools.length > 0)
+    ? finalResume.skillsAndTools
+    : userInput.highlightSkills
+    ? userInput.highlightSkills.split(/[,，\n]/).filter(Boolean)
+    : ['JavaScript / TypeScript', 'React / Next.js', 'Node.js', 'Tailwind CSS', 'Git'];
+
+  const edu = finalResume?.education || {
+    school: '清华大学',
+    degree: '本科',
+    period: '2023.09 - 2027.06'
+  };
+
+  const avatarUrl = finalResume?.personalInfo?.avatarUrl || userInput.avatarUrl || '';
+
+  const newSchema = JSON.parse(JSON.stringify(currentSchema)) as IHJSchema;
+  const page = newSchema.componentsTree[0];
+  if (!page || !page.children) return newSchema;
+
+  const usedWidgetIds = new Set<string>();
+  const markUsed = (w: IWidget) => { usedWidgetIds.add(w.id); };
+  const isUnused = (w: IWidget) => !usedWidgetIds.has(w.id);
+
+  // 1. Avatar Widget
+  page.children.filter(isUnused).forEach((widget) => {
+    const title = (widget.title || '').toLowerCase();
+    const id = (widget.id || '').toLowerCase();
+    const compName = (widget.componentName || '').toLowerCase();
+    if (compName.includes('avatar') || title.includes('头像') || id.includes('avatar')) {
+      if (avatarUrl) {
+        widget.dataSource.avatarSrc = avatarUrl;
+      }
+      markUsed(widget);
+    }
+  });
+
+  // 2. Name Widget
+  page.children.filter(isUnused).forEach((widget) => {
+    const title = (widget.title || '').toLowerCase();
+    const id = (widget.id || '').toLowerCase();
+    const currentText = typeof widget.dataSource?.text === 'string' ? widget.dataSource.text : '';
+
+    if (title.includes('姓名') || id.includes('name')) {
+      if (title.includes('意向') || currentText.includes('·') || currentText.includes('设计师') || currentText.includes('工程师')) {
+        widget.dataSource.text = `${name} · ${jobIntent}`;
+      } else {
+        widget.dataSource.text = name;
+      }
+      markUsed(widget);
+    }
+  });
+
+  // 3. Job Intent Widget
+  page.children.filter(isUnused).forEach((widget) => {
+    const title = (widget.title || '').toLowerCase();
+    const id = (widget.id || '').toLowerCase();
+    const currentText = typeof widget.dataSource?.text === 'string' ? widget.dataSource.text : '';
+
+    if (title.includes('意向') || id.includes('intent')) {
+      if (currentText.startsWith('🎯') || currentText.includes('🎯')) {
+        widget.dataSource.text = `🎯 意向：${jobIntent}`;
+      } else if (currentText.startsWith('意向') || currentText.startsWith('求职意向')) {
+        widget.dataSource.text = `求职意向：${jobIntent}`;
+      } else {
+        widget.dataSource.text = jobIntent;
+      }
+      markUsed(widget);
+    }
+  });
+
+  // 4. Contact / Basic Info Widget
+  page.children.filter(isUnused).forEach((widget) => {
+    const title = (widget.title || '').toLowerCase();
+    const id = (widget.id || '').toLowerCase();
+    const currentText = typeof widget.dataSource?.text === 'string' ? widget.dataSource.text : '';
+
+    if (title.includes('联系') || title.includes('基本信息') || id.includes('contact')) {
+      if (currentText.includes('🏫') || currentText.includes('📞') || currentText.includes('✉️')) {
+        widget.dataSource.text = `🏫 院校：${edu.school}\n📞 电话：${phone}\n✉️ 邮箱：${email}\n📍 城市：${location}`;
+      } else if (currentText.includes('cat profile.json')) {
+        widget.dataSource.text = `$ cat profile.json | grep --intent="${jobIntent}"`;
+      } else if (currentText.includes('\n')) {
+        widget.dataSource.text = `✉️ ${email}\n📱 ${phone}\n📍 ${location}`;
+      } else {
+        widget.dataSource.text = `${email}  |  ${phone}  |  ${location}`;
+      }
+      markUsed(widget);
+    }
+  });
+
+  // 5. Summary / Profile Widget
+  page.children.filter(isUnused).forEach((widget) => {
+    const title = (widget.title || '').toLowerCase();
+    const id = (widget.id || '').toLowerCase();
+    const currentText = typeof widget.dataSource?.text === 'string' ? widget.dataSource.text : '';
+
+    if (
+      (title.includes('自我评价') ||
+      title.includes('个人优势') ||
+      title.includes('职业摘要') ||
+      title.includes('summary') ||
+      title.includes('profile') ||
+      id.includes('summary') ||
+      id.includes('profile')) &&
+      !title.includes('标题')
+    ) {
+      const cardWidth = widget.css.width || 740;
+      const fontSz = widget.css.fontSize || 12.5;
+      const sumH = calculateSummaryHeight(summary, cardWidth, fontSz, 20);
+      widget.css.height = Math.max(45, sumH);
+      widget.dataSource.text = currentText.includes('【自我评价】') ? `【自我评价】\n${summary}` : summary;
+      markUsed(widget);
+    }
+  });
+
+  // 6. Work Experience Widgets
+  const workCandidates = page.children.filter(isUnused).filter((widget) => {
+    const title = (widget.title || '').toLowerCase();
+    const id = (widget.id || '').toLowerCase();
+    const compName = (widget.componentName || '').toLowerCase();
+
+    return (
+      (compName.includes('exper') || id.includes('work') || title.includes('工作经历') || title.includes('工作经验')) &&
+      !title.includes('标题') &&
+      !title.includes('项目') &&
+      !title.includes('教育')
+    );
+  });
+
+  workCandidates.forEach((widget, idx) => {
+    if (idx < workList.length) {
+      const w = workList[idx];
+      const formattedBullets = w.bullets.map((b) => (b.trim().startsWith('•') || b.trim().startsWith('1.') || b.trim().startsWith('2.')) ? b : `• ${b}`).join('\n');
+      const cardWidth = widget.css.width || 740;
+      const fontSz = widget.css.fontSize || 12.5;
+      const cardH = calculateCardHeight(w.company, w.role, w.period, w.bullets, cardWidth, fontSz, 20);
+
+      widget.css.height = Math.max(65, cardH);
+      widget.dataSource.companyName = w.company;
+      widget.dataSource.jobTitle = w.role;
+      widget.dataSource.workTime = w.period;
+      widget.dataSource.workContent = formattedBullets;
+      widget.dataSource.text = `${w.company} · ${w.role}\n${formattedBullets}`;
+      markUsed(widget);
+    }
+  });
+
+  if (workList.length > workCandidates.length && workCandidates.length > 0) {
+    const templateWidget = workCandidates[workCandidates.length - 1];
+    let lastTop = (Number(templateWidget.css.top) || 0) + (Number(templateWidget.css.height) || 100) + 12;
+
+    for (let idx = workCandidates.length; idx < workList.length; idx++) {
+      const w = workList[idx];
+      const formattedBullets = w.bullets.map((b) => (b.trim().startsWith('•') || b.trim().startsWith('1.') || b.trim().startsWith('2.')) ? b : `• ${b}`).join('\n');
+      const cardWidth = templateWidget.css.width || 740;
+      const fontSz = templateWidget.css.fontSize || 12.5;
+      const cardH = calculateCardHeight(w.company, w.role, w.period, w.bullets, cardWidth, fontSz, 20);
+
+      const extraWidget: IWidget = JSON.parse(JSON.stringify(templateWidget));
+      extraWidget.id = `widget-work-extra-${idx}-${Date.now()}`;
+      extraWidget.title = `工作 ${idx + 1}`;
+      extraWidget.css.top = lastTop;
+      extraWidget.css.height = Math.max(65, cardH);
+      extraWidget.dataSource.companyName = w.company;
+      extraWidget.dataSource.jobTitle = w.role;
+      extraWidget.dataSource.workTime = w.period;
+      extraWidget.dataSource.workContent = formattedBullets;
+      extraWidget.dataSource.text = `${w.company} · ${w.role}\n${formattedBullets}`;
+
+      page.children.push(extraWidget);
+      markUsed(extraWidget);
+      lastTop += cardH + 12;
+    }
+  }
+
+  // 7. Project Experience Widgets
+  const projectCandidates = page.children.filter(isUnused).filter((widget) => {
+    const title = (widget.title || '').toLowerCase();
+    const id = (widget.id || '').toLowerCase();
+
+    return (
+      (id.includes('project') || title.includes('项目经历') || title.includes('项目经验') || title.includes('项目作品')) &&
+      !title.includes('标题')
+    );
+  });
+
+  projectCandidates.forEach((widget, idx) => {
+    if (idx < projectList.length) {
+      const p = projectList[idx];
+      const formattedBullets = p.bullets.map((b) => (b.trim().startsWith('•') || b.trim().startsWith('1.') || b.trim().startsWith('2.')) ? b : `• ${b}`).join('\n');
+      const cardWidth = widget.css.width || 740;
+      const fontSz = widget.css.fontSize || 12.5;
+      const cardH = calculateCardHeight(p.name, p.role, p.period, p.bullets, cardWidth, fontSz, 20);
+
+      widget.css.height = Math.max(65, cardH);
+      widget.dataSource.companyName = p.name;
+      widget.dataSource.jobTitle = p.role;
+      widget.dataSource.workTime = p.period;
+      widget.dataSource.workContent = formattedBullets;
+      widget.dataSource.text = `${p.name} · ${p.role}\n${formattedBullets}`;
+      markUsed(widget);
+    }
+  });
+
+  if (projectList.length > projectCandidates.length && projectCandidates.length > 0) {
+    const templateWidget = projectCandidates[projectCandidates.length - 1];
+    let lastTop = (Number(templateWidget.css.top) || 0) + (Number(templateWidget.css.height) || 100) + 12;
+
+    for (let idx = projectCandidates.length; idx < projectList.length; idx++) {
+      const p = projectList[idx];
+      const formattedBullets = p.bullets.map((b) => (b.trim().startsWith('•') || b.trim().startsWith('1.') || b.trim().startsWith('2.')) ? b : `• ${b}`).join('\n');
+      const cardWidth = templateWidget.css.width || 740;
+      const fontSz = templateWidget.css.fontSize || 12.5;
+      const cardH = calculateCardHeight(p.name, p.role, p.period, p.bullets, cardWidth, fontSz, 20);
+
+      const extraWidget: IWidget = JSON.parse(JSON.stringify(templateWidget));
+      extraWidget.id = `widget-project-extra-${idx}-${Date.now()}`;
+      extraWidget.title = `项目 ${idx + 1}`;
+      extraWidget.css.top = lastTop;
+      extraWidget.css.height = Math.max(65, cardH);
+      extraWidget.dataSource.companyName = p.name;
+      extraWidget.dataSource.jobTitle = p.role;
+      extraWidget.dataSource.workTime = p.period;
+      extraWidget.dataSource.workContent = formattedBullets;
+      extraWidget.dataSource.text = `${p.name} · ${p.role}\n${formattedBullets}`;
+
+      page.children.push(extraWidget);
+      markUsed(extraWidget);
+      lastTop += cardH + 12;
+    }
+  }
+
+  // 8. Education Widget
+  page.children.filter(isUnused).forEach((widget) => {
+    const title = (widget.title || '').toLowerCase();
+    const id = (widget.id || '').toLowerCase();
+    const compName = (widget.componentName || '').toLowerCase();
+
+    if ((title.includes('教育') || id.includes('edu')) && !title.includes('标题')) {
+      if (compName.includes('exper')) {
+        widget.dataSource.companyName = edu.school;
+        widget.dataSource.jobTitle = `${edu.degree} · ${edu.period}`;
+        widget.dataSource.workTime = edu.period;
+        widget.dataSource.workContent = `专业课程与研究成果`;
+      } else {
+        widget.dataSource.text = `${edu.school}  ·  ${edu.degree}  (${edu.period})`;
+      }
+      markUsed(widget);
+    }
+  });
+
+  // 9. Skills & Tools Widget
+  page.children.filter(isUnused).forEach((widget) => {
+    const title = (widget.title || '').toLowerCase();
+    const id = (widget.id || '').toLowerCase();
+    const currentText = typeof widget.dataSource?.text === 'string' ? widget.dataSource.text : '';
+
+    if ((title.includes('技能') || title.includes('工具') || id.includes('skill')) && !title.includes('标题')) {
+      const formattedSkills = currentText.includes('•')
+        ? skills.map((s) => `• ${s}`).join('\n')
+        : skills.join('  ·  ');
+
+      widget.dataSource.text = formattedSkills;
+      const fontSz = widget.css.fontSize || 12;
+      const wWidth = widget.css.width || 740;
+      const calcH = calculateSummaryHeight(formattedSkills, wWidth, fontSz, 20);
+      widget.css.height = Math.max(26, calcH);
+      markUsed(widget);
+    }
+  });
+
+  // Clean remaining unused text placeholders containing sample names to prevent ghost text
+  page.children.filter(isUnused).forEach((widget) => {
+    const currentText = typeof widget.dataSource?.text === 'string' ? widget.dataSource.text : '';
+    if (currentText) {
+      let updatedText = currentText;
+      if (updatedText.includes('陈晨')) updatedText = updatedText.replace(/陈晨/g, name);
+      if (updatedText.includes('张伟')) updatedText = updatedText.replace(/张伟/g, name);
+      if (updatedText.includes('chenchen@design.com')) updatedText = updatedText.replace(/chenchen@design.com/g, email);
+      if (updatedText.includes('137-0000-1111')) updatedText = updatedText.replace(/137-0000-1111/g, phone);
+
+      if (updatedText !== currentText) {
+        widget.dataSource.text = updatedText;
+        markUsed(widget);
+      }
+    }
+  });
+
+  // Clamp right edge boundary for all widgets so no element spills past 770px
+  page.children.forEach((widget) => {
+    const wLeft = Number(widget.css.left) || 30;
+    const wWidth = Number(widget.css.width) || 200;
+    if (wLeft + wWidth > 770) {
+      widget.css.width = Math.max(120, 770 - wLeft);
+    }
+  });
+
+  // =========================================================================
+  // SMART LAYOUT CASCADE RE-ALIGNMENT (Prevent Overlapping / Clashing Elements)
+  // =========================================================================
+  const columns: Array<IWidget[]> = [];
+
+  page.children.forEach((widget) => {
+    const wLeft = Number(widget.css.left) || 0;
+
+    let matchedCol = columns.find((col) => {
+      const colLeft = Number(col[0].css.left) || 0;
+      return Math.abs(wLeft - colLeft) < 60;
+    });
+
+    if (!matchedCol) {
+      matchedCol = [];
+      columns.push(matchedCol);
+    }
+    matchedCol.push(widget);
+  });
+
+  let maxCanvasBottom = 1160;
+
+  columns.forEach((colWidgets) => {
+    colWidgets.sort((a, b) => (Number(a.css.top) || 0) - (Number(b.css.top) || 0));
+
+    for (let i = 1; i < colWidgets.length; i++) {
+      const prev = colWidgets[i - 1];
+      const curr = colWidgets[i];
+
+      const prevTop = Number(prev.css.top) || 0;
+      const prevHeight = Number(prev.css.height) || 40;
+      const prevBottom = prevTop + prevHeight;
+
+      const origCurrTop = Number(curr.css.top) || 0;
+      const minGap = 8;
+      const targetTop = Math.max(origCurrTop, prevBottom + minGap);
+
+      if (targetTop > origCurrTop) {
+        curr.css.top = Math.ceil(targetTop);
+      }
+
+      const currBottom = (Number(curr.css.top) || 0) + (Number(curr.css.height) || 40);
+      if (currBottom > maxCanvasBottom) {
+        maxCanvasBottom = currBottom;
+      }
+    }
+  });
+
+  newSchema.css.height = Math.max(1160, Math.ceil(maxCanvasBottom + 50));
+
+  return newSchema;
+}
+
 export function buildLegoSchemaFromResume(
   userInput: UserInput,
   analysisResult?: AnalysisResult | null,
@@ -159,7 +567,9 @@ export function buildLegoSchemaFromResume(
         }
       ];
 
-  const skills = finalResume?.skillsAndTools && finalResume.skillsAndTools.length > 0
+  const skills = (finalResume?.coreSkills && finalResume.coreSkills.length > 0)
+    ? finalResume.coreSkills
+    : (finalResume?.skillsAndTools && finalResume.skillsAndTools.length > 0)
     ? finalResume.skillsAndTools
     : userInput.highlightSkills
     ? userInput.highlightSkills.split(/[,，\n]/).filter(Boolean)
@@ -663,10 +1073,11 @@ export function buildLegoSchemaFromResume(
     let skillX = 30;
     let skillY = topPos;
     skills.forEach((sk, sIdx) => {
-      const tagW = Math.max(85, sk.length * 11 + 22);
-      if (skillX + tagW > 780) {
+      const maxAllowedTagW = 720;
+      const tagW = Math.min(maxAllowedTagW, Math.max(75, Math.ceil(sk.length * 9.5 + 20)));
+      if (skillX > 30 && skillX + tagW > 770) {
         skillX = 30;
-        skillY += 34;
+        skillY += 32;
       }
       children.push({
         id: `widget-corp-skill-${sIdx}`,
@@ -676,7 +1087,7 @@ export function buildLegoSchemaFromResume(
           left: skillX,
           top: skillY,
           width: tagW,
-          height: 27,
+          height: 26,
           zIndex: 2,
           backgroundColor: '#eff6ff',
           borderColor: '#bfdbfe',
@@ -684,7 +1095,7 @@ export function buildLegoSchemaFromResume(
           borderStyle: 'solid',
           borderRadius: 14,
           fontColor: themeColor,
-          fontSize: 12,
+          fontSize: 11.5,
           fontWeight: '500',
           textAlign: 'center'
         },
@@ -692,7 +1103,7 @@ export function buildLegoSchemaFromResume(
       });
       skillX += tagW + 8;
     });
-    topPos = skillY + 45;
+    topPos = skillY + 42;
 
     // 3. Work Experience
     children.push({
@@ -1214,6 +1625,239 @@ export function buildLegoSchemaFromResume(
   }
 
   // -------------------------------------------------------------
+  // LAYOUT: Minimal Fresh Green (🌿 简约清新风格 100% 导入 AI 润色简历数据)
+  // -------------------------------------------------------------
+  if (effectiveTemplateId === 'minimal') {
+    let topPos = 35;
+
+    // Header Name & Title
+    children.push({
+      id: 'widget-name-minimal',
+      componentName: 'hj-text-2',
+      title: '姓名',
+      css: {
+        left: 40,
+        top: topPos,
+        width: 420,
+        height: 40,
+        zIndex: 2,
+        fontColor: '#065f46',
+        fontSize: 24,
+        fontWeight: 'bold'
+      },
+      dataSource: { text: `${name} · ${jobIntent}` }
+    });
+
+    // Header Contact
+    children.push({
+      id: 'widget-contact-minimal',
+      componentName: 'hj-text-3',
+      title: '联系方式',
+      css: {
+        left: 460,
+        top: topPos + 4,
+        width: 320,
+        height: 36,
+        zIndex: 2,
+        fontColor: '#4b5563',
+        fontSize: 12,
+        textAlign: 'right'
+      },
+      dataSource: { text: `${email} | ${phone} | ${location}` }
+    });
+
+    topPos += 48;
+
+    // Mint Green Separator Line
+    children.push({
+      id: 'widget-divider-minimal',
+      componentName: 'hj-other-1',
+      title: '分隔线',
+      css: {
+        left: 40,
+        top: topPos,
+        width: 740,
+        height: 2,
+        zIndex: 1,
+        backgroundColor: '#059669',
+        borderWidth: 0
+      },
+      dataSource: {}
+    });
+
+    topPos += 18;
+
+    // Helper for Section Header in Minimal Style
+    const addMinimalSectionTitle = (titleText: string, idPrefix: string) => {
+      children.push({
+        id: `widget-sec-title-${idPrefix}`,
+        componentName: 'hj-text-8',
+        title: `${titleText}标题`,
+        css: {
+          left: 40,
+          top: topPos,
+          width: 740,
+          height: 32,
+          zIndex: 2,
+          fontColor: '#065f46',
+          fontSize: 15,
+          fontWeight: 'bold',
+          padding: { top: 0, right: 0, bottom: 0, left: 10 },
+          borderLeftColor: '#059669',
+          borderLeftWidth: 3,
+          borderLeftStyle: 'solid'
+        },
+        dataSource: { text: `▌ ${titleText}` }
+      });
+      topPos += 38;
+    };
+
+    // 1. Profile / Summary
+    addMinimalSectionTitle('个人优势 & 核心能力 PROFILE', 'profile');
+    const summaryH = calculateSummaryHeight(summary, 740, 13, 20);
+    children.push({
+      id: 'widget-summary-minimal-content',
+      componentName: 'hj-text-6',
+      title: '个人优势内容',
+      css: {
+        left: 40,
+        top: topPos,
+        width: 740,
+        height: summaryH,
+        zIndex: 2,
+        fontColor: '#374151',
+        fontSize: 13,
+        lineHeight: 1.7
+      },
+      dataSource: { text: summary }
+    });
+    topPos += summaryH + 20;
+
+    // 2. Work Experience
+    addMinimalSectionTitle('工作经历 WORK EXPERIENCE', 'work');
+    workList.forEach((w, idx) => {
+      const formattedBullets = w.bullets.map((b) => (b.trim().startsWith('•') || b.trim().startsWith('1.') || b.trim().startsWith('2.')) ? b : `• ${b}`).join('\n');
+      const cardHeight = calculateCardHeight(w.company, w.role, w.period, w.bullets, 740, 13, 20);
+      children.push({
+        id: `widget-work-minimal-${idx}`,
+        componentName: 'hj-[#exper-1]',
+        title: `工作经历 ${idx + 1}`,
+        css: {
+          left: 40,
+          top: topPos,
+          width: 740,
+          height: cardHeight,
+          zIndex: 2,
+          fontColor: '#374151',
+          fontSize: 13,
+          lineHeight: 1.6
+        },
+        dataSource: {
+          companyName: w.company,
+          jobTitle: w.role,
+          workTime: w.period,
+          workContent: formattedBullets,
+          text: `${w.company} · ${w.role}\n${formattedBullets}`
+        }
+      });
+      topPos += cardHeight + 14;
+    });
+    topPos += 8;
+
+    // 3. Project Experience
+    addMinimalSectionTitle('项目经验 PROJECT EXPERIENCE', 'project');
+    projectList.forEach((p, idx) => {
+      const formattedBullets = p.bullets.map((b) => (b.trim().startsWith('•') || b.trim().startsWith('1.') || b.trim().startsWith('2.')) ? b : `• ${b}`).join('\n');
+      const cardHeight = calculateCardHeight(p.name, p.role, p.period, p.bullets, 740, 13, 20);
+      children.push({
+        id: `widget-project-minimal-${idx}`,
+        componentName: 'hj-[#exper-1]',
+        title: `项目经历 ${idx + 1}`,
+        css: {
+          left: 40,
+          top: topPos,
+          width: 740,
+          height: cardHeight,
+          zIndex: 2,
+          fontColor: '#374151',
+          fontSize: 13,
+          lineHeight: 1.6
+        },
+        dataSource: {
+          companyName: p.name,
+          jobTitle: p.role,
+          workTime: p.period,
+          workContent: formattedBullets,
+          text: `${p.name} · ${p.role}\n${formattedBullets}`
+        }
+      });
+      topPos += cardHeight + 14;
+    });
+    topPos += 8;
+
+    // 4. Education
+    addMinimalSectionTitle('教育背景 EDUCATION', 'education');
+    children.push({
+      id: 'widget-edu-minimal-content',
+      componentName: 'hj-[#exper-1]',
+      title: '教育经历',
+      css: {
+        left: 40,
+        top: topPos,
+        width: 740,
+        height: 60,
+        zIndex: 2,
+        fontColor: '#374151',
+        fontSize: 13
+      },
+      dataSource: {
+        companyName: edu.school,
+        jobTitle: `${edu.degree} · ${edu.period}`,
+        workTime: edu.period,
+        workContent: `专业学习与研究成果`
+      }
+    });
+    topPos += 75;
+
+    // 5. Skills & Tools
+    addMinimalSectionTitle('技能软件 & 工具 SKILLS & TOOLS', 'skills');
+    children.push({
+      id: 'widget-skills-minimal-content',
+      componentName: 'hj-text-6',
+      title: '技能详情',
+      css: {
+        left: 40,
+        top: topPos,
+        width: 740,
+        height: 50,
+        zIndex: 2,
+        fontColor: '#374151',
+        fontSize: 13,
+        lineHeight: 1.8
+      },
+      dataSource: { text: skills.map(s => `• ${s}`).join('\n') }
+    });
+    topPos += 60;
+
+    return {
+      id: `lego-resume-minimal-${Date.now()}`,
+      version: '1.0.0',
+      componentsTree: [{ id: 'page-1', componentName: 'page', commentType: 'page', children }],
+      css: {
+        width: 820,
+        height: Math.max(1160, topPos + 40),
+        background: '#ffffff',
+        opacity: 1,
+        fontFamily: 'Inter, sans-serif',
+        themeColor: '#059669'
+      },
+      config: {
+        title: `${name} 的【简约清新风格】积木简历`
+      }
+    };
+  }
+
+  // -------------------------------------------------------------
   // LAYOUT: Classic Minimal (经典极简单栏 100% 保真还原)
   // -------------------------------------------------------------
   if (effectiveTemplateId === 'classic-minimal') {
@@ -1669,10 +2313,11 @@ export function buildLegoSchemaFromResume(
   let skillLeft = 30;
   let skillTop = topPos;
   skills.forEach((sk, sIdx) => {
-    const tagWidth = Math.max(85, sk.length * 11 + 22);
-    if (skillLeft + tagWidth > 780) {
+    const maxAllowedTagW = 720;
+    const tagWidth = Math.min(maxAllowedTagW, Math.max(75, Math.ceil(sk.length * 9.5 + 20)));
+    if (skillLeft > 30 && skillLeft + tagWidth > 770) {
       skillLeft = 30;
-      skillTop += 34;
+      skillTop += 32;
     }
     children.push({
       id: `widget-skill-tag-${sIdx}`,
@@ -1682,7 +2327,7 @@ export function buildLegoSchemaFromResume(
         left: skillLeft,
         top: skillTop,
         width: tagWidth,
-        height: 27,
+        height: 26,
         zIndex: 2,
         backgroundColor: '#f0fdf4',
         borderColor: '#bbf7d0',
@@ -1690,7 +2335,7 @@ export function buildLegoSchemaFromResume(
         borderStyle: 'solid',
         borderRadius: 14,
         fontColor: themeColor,
-        fontSize: 12,
+        fontSize: 11.5,
         fontWeight: '500',
         textAlign: 'center'
       },

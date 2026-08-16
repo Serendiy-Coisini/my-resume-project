@@ -26,7 +26,7 @@ export function printLegoCanvas() {
   // Clone canvas content
   const clone = canvasElement.cloneNode(true) as HTMLElement;
 
-  // Remove selection outlines / handles from clone
+  // Remove selection outlines / handles / guidelines / page break badges from clone
   const handles = clone.querySelectorAll('.ring-2, .ring-1, [class*="cursor-"]');
   handles.forEach((el) => {
     el.classList.remove('ring-2', 'ring-blue-500', 'ring-1', 'ring-blue-300');
@@ -34,6 +34,12 @@ export function printLegoCanvas() {
     const handleDots = el.querySelectorAll('div[class*="border-blue-600"]');
     handleDots.forEach((dot) => dot.remove());
   });
+
+  // Remove guidelines, rubberband selection box, and page break indicators
+  const uiHelpers = clone.querySelectorAll(
+    '[data-canvas-ui="true"], [data-page-break-indicator="true"], .page-break-indicator-ui, [class*="border-rose-500"], [class*="border-blue-500"], [class*="border-amber-500"], [class*="bg-amber-600"]'
+  );
+  uiHelpers.forEach((el) => el.remove());
 
   // Ensure absolute positioning is explicitly set in inline style for all child widgets
   const childWidgets = clone.children;
@@ -82,6 +88,17 @@ export function printLegoCanvas() {
           }
           #lego-canvas-page * {
             box-sizing: border-box;
+          }
+          [data-canvas-ui="true"],
+          [data-page-break-indicator="true"],
+          .page-break-indicator-ui,
+          [class*="bg-amber-600"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            height: 0 !important;
+            width: 0 !important;
+            overflow: hidden !important;
           }
         </style>
       </head>

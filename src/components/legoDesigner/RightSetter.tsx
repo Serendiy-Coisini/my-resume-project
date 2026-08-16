@@ -18,7 +18,9 @@ import {
   Image as ImageIcon,
   RotateCw,
   Star,
-  QrCode
+  QrCode,
+  Paintbrush,
+  Briefcase
 } from 'lucide-react';
 
 interface RightSetterProps {
@@ -32,8 +34,16 @@ export const RightSetter: React.FC<RightSetterProps> = ({
   isCollapsed,
   onToggleCollapse
 }) => {
-  const { getSelectedWidget, updateWidgetCss, updateWidgetDataSource, selectedWidgetId } =
-    useLegoDesignerStore();
+  const {
+    getSelectedWidget,
+    updateWidgetCss,
+    updateWidgetDataSource,
+    selectedWidgetId,
+    selectedWidgetIds,
+    isFormatPainterActive,
+    toggleFormatPainter,
+    alignWidgets
+  } = useLegoDesignerStore();
   const { setUserInput } = useResumeStore();
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -92,7 +102,6 @@ export const RightSetter: React.FC<RightSetterProps> = ({
     editorRef.current.innerText = plainText;
     updateWidgetDataSource(selectedWidgetId, { text: plainText, workContent: plainText });
   };
-  const selectedWidget = getSelectedWidget();
 
   const handleAvatarFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -146,6 +155,18 @@ export const RightSetter: React.FC<RightSetterProps> = ({
       qrFileInputRef.current.value = '';
     }
   };
+
+  const selectedWidget = getSelectedWidget();
+
+  const htmlContent = convertLegacyTagsToHTML(
+    ((selectedWidget?.dataSource.workContent || selectedWidget?.dataSource.text || '') as string)
+  );
+
+  React.useEffect(() => {
+    if (editorRef.current && editorRef.current.innerHTML !== htmlContent) {
+      editorRef.current.innerHTML = htmlContent;
+    }
+  }, [htmlContent, selectedWidget?.id]);
 
   if (isCollapsed) {
     return (
@@ -218,9 +239,29 @@ export const RightSetter: React.FC<RightSetterProps> = ({
           <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0"></span>
           {title || componentName} 属性设置
         </h3>
-        <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-mono shrink-0 ml-1">
-          ID: {selectedWidget.id.slice(-6)}
-        </span>
+
+        <div className="flex items-center gap-1 shrink-0 ml-1">
+          {selectedWidgetIds.length > 1 && (
+            <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">
+              已选{selectedWidgetIds.length}项
+            </span>
+          )}
+          <button
+            type="button"
+            className={`p-1 rounded transition-colors cursor-pointer border ${
+              isFormatPainterActive
+                ? 'bg-amber-500 text-white border-amber-500 font-bold ring-2 ring-amber-300'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+            }`}
+            onClick={() => toggleFormatPainter()}
+            title={isFormatPainterActive ? '关闭格式刷' : '提取当前组件样式，点击目标组件快速刷样式'}
+          >
+            <Paintbrush className="w-3.5 h-3.5" />
+          </button>
+          <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-mono">
+            ID: {selectedWidget.id.slice(-6)}
+          </span>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5 text-xs">
@@ -394,6 +435,71 @@ export const RightSetter: React.FC<RightSetterProps> = ({
           </div>
         )}
 
+        {/* Experience Card Top Header Editor (Company, Job Title, Time) */}
+        {(componentName === 'hj-[#exper-1]' ||
+          dataSource.companyName !== undefined ||
+          dataSource.jobTitle !== undefined ||
+          dataSource.workTime !== undefined) && (
+          <div className="space-y-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl shadow-2xs">
+            <label className="font-bold text-slate-800 flex items-center gap-1.5 text-xs">
+              <Briefcase className="w-4 h-4 text-blue-600 shrink-0" /> 经历顶栏标题与时间
+            </label>
+
+            <div>
+              <span className="text-[10.5px] text-slate-500 font-medium">公司 / 单位 / 项目 / 学校名称</span>
+              <input
+                type="text"
+                className="w-full p-1.5 mt-0.5 border border-slate-300 rounded text-slate-800 text-xs bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none font-medium"
+                value={(dataSource.companyName as string) || ''}
+                placeholder="例如：陆丰市人民检察院 / 某科技公司"
+                onChange={(e) => {
+                  const newCompany = e.target.value;
+                  const role = (dataSource.jobTitle || '') as string;
+                  const content = (dataSource.workContent || '') as string;
+                  updateWidgetDataSource(selectedWidget.id, {
+                    companyName: newCompany,
+                    text: content ? `${newCompany} · ${role}\n${content}` : `${newCompany} · ${role}`
+                  });
+                }}
+              />
+            </div>
+
+            <div>
+              <span className="text-[10.5px] text-slate-500 font-medium">岗位 / 角色 / 职务 / 专业方向</span>
+              <input
+                type="text"
+                className="w-full p-1.5 mt-0.5 border border-slate-300 rounded text-slate-800 text-xs bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none font-medium"
+                value={(dataSource.jobTitle as string) || ''}
+                placeholder="例如：信息化运维实习生 / AI 产品经理"
+                onChange={(e) => {
+                  const newRole = e.target.value;
+                  const company = (dataSource.companyName || '') as string;
+                  const content = (dataSource.workContent || '') as string;
+                  updateWidgetDataSource(selectedWidget.id, {
+                    jobTitle: newRole,
+                    text: content ? `${company} · ${newRole}\n${content}` : `${company} · ${newRole}`
+                  });
+                }}
+              />
+            </div>
+
+            <div>
+              <span className="text-[10.5px] text-slate-500 font-medium">履历起止时间</span>
+              <input
+                type="text"
+                className="w-full p-1.5 mt-0.5 border border-slate-300 rounded text-slate-800 text-xs bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none font-mono font-medium"
+                value={(dataSource.workTime as string) || ''}
+                placeholder="例如：2025-01 至 2025-02"
+                onChange={(e) => {
+                  updateWidgetDataSource(selectedWidget.id, {
+                    workTime: e.target.value
+                  });
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* 1. DataSource Content Setter */}
         {(dataSource.text !== undefined || dataSource.workContent !== undefined || dataSource.companyName !== undefined) && (
           <div className="space-y-1.5">
@@ -492,11 +598,6 @@ export const RightSetter: React.FC<RightSetterProps> = ({
               onKeyUp={saveSelection}
               onSelect={saveSelection}
               className="w-full min-h-[100px] max-h-[220px] overflow-y-auto p-2.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none text-slate-800 text-xs font-sans leading-relaxed bg-white shadow-inner"
-              dangerouslySetInnerHTML={{
-                __html: convertLegacyTagsToHTML(
-                  ((selectedWidget?.dataSource.workContent || selectedWidget?.dataSource.text || '') as string)
-                )
-              }}
               onInput={(e) => {
                 const html = e.currentTarget.innerHTML;
                 updateWidgetDataSource(selectedWidget.id, {
@@ -557,6 +658,86 @@ export const RightSetter: React.FC<RightSetterProps> = ({
                   updateWidgetCss(selectedWidget.id, { height: Number(e.target.value) || 20 })
                 }
               />
+            </div>
+          </div>
+
+          {/* Alignment Tools Card */}
+          <div className="pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between text-[11px] mb-1.5">
+              <span className="font-semibold text-slate-700 flex items-center gap-1">
+                🎯 一键对齐与分布
+              </span>
+              <span className="text-[10px] text-slate-400">
+                {selectedWidgetIds.length > 1 ? `${selectedWidgetIds.length}项相对对齐` : '画布居中/边沿'}
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-1">
+              <button
+                type="button"
+                className="p-1.5 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-200 rounded text-[10px] font-medium flex items-center justify-center gap-0.5 transition-colors cursor-pointer"
+                onClick={() => alignWidgets('left')}
+                title="左对齐"
+              >
+                ├ 左对齐
+              </button>
+              <button
+                type="button"
+                className="p-1.5 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-200 rounded text-[10px] font-medium flex items-center justify-center gap-0.5 transition-colors cursor-pointer"
+                onClick={() => alignWidgets('centerX')}
+                title="水平居中对齐"
+              >
+                ┼ 水平居中
+              </button>
+              <button
+                type="button"
+                className="p-1.5 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-200 rounded text-[10px] font-medium flex items-center justify-center gap-0.5 transition-colors cursor-pointer"
+                onClick={() => alignWidgets('right')}
+                title="右对齐"
+              >
+                ┤ 右对齐
+              </button>
+              <button
+                type="button"
+                className="p-1.5 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-200 rounded text-[10px] font-medium flex items-center justify-center gap-0.5 transition-colors cursor-pointer"
+                onClick={() => alignWidgets('top')}
+                title="顶对齐"
+              >
+                ┬ 顶对齐
+              </button>
+              <button
+                type="button"
+                className="p-1.5 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-200 rounded text-[10px] font-medium flex items-center justify-center gap-0.5 transition-colors cursor-pointer"
+                onClick={() => alignWidgets('centerY')}
+                title="垂直居中对齐"
+              >
+                ┼ 垂直居中
+              </button>
+              <button
+                type="button"
+                className="p-1.5 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-200 rounded text-[10px] font-medium flex items-center justify-center gap-0.5 transition-colors cursor-pointer"
+                onClick={() => alignWidgets('bottom')}
+                title="底对齐"
+              >
+                ┴ 底对齐
+              </button>
+              <button
+                type="button"
+                disabled={selectedWidgetIds.length < 3}
+                className="p-1.5 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-40 disabled:hover:bg-slate-50 disabled:hover:text-slate-700 border border-slate-200 rounded text-[10px] font-medium flex items-center justify-center gap-0.5 transition-colors cursor-pointer"
+                onClick={() => alignWidgets('distributeH')}
+                title="3个以上组件：水平等间距分布"
+              >
+                ≡ 水平等距
+              </button>
+              <button
+                type="button"
+                disabled={selectedWidgetIds.length < 3}
+                className="p-1.5 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-40 disabled:hover:bg-slate-50 disabled:hover:text-slate-700 border border-slate-200 rounded text-[10px] font-medium flex items-center justify-center gap-0.5 transition-colors cursor-pointer"
+                onClick={() => alignWidgets('distributeV')}
+                title="3个以上组件：垂直等间距分布"
+              >
+                III 垂直等距
+              </button>
             </div>
           </div>
         </div>

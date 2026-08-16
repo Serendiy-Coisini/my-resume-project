@@ -1,9 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useLegoDesignerStore } from '@/store/lego-designer-store';
 import { useResumeStore } from '@/store/resume-store';
-import { buildLegoSchemaFromResume } from '@/lib/lego-adapter';
+import { buildLegoSchemaFromResume, fillAiDataIntoExistingSchema } from '@/lib/lego-adapter';
 import { printLegoCanvas } from './utils/printLego';
-import { PRESET_TEMPLATES } from '@/lib/preset-templates';
 import { SaveTemplateDialog } from './SaveTemplateDialog';
 import type { TemplateId } from '@/types/resume';
 import {
@@ -22,7 +21,8 @@ import {
   Save,
   FolderOpen,
   RotateCcw,
-  BookmarkPlus
+  BookmarkPlus,
+  Paintbrush
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -32,9 +32,21 @@ interface ToolbarProps {
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScreen, standalone }) => {
-  const { scale, setScale, undo, redo, undoStack, redoStack, setSchema, resetSchema, schema } =
-    useLegoDesignerStore();
-  const { userInput, analysisResult, selectedTemplate, templateOptions, customTemplateHTML, setSelectedTemplate } = useResumeStore();
+  const {
+    scale,
+    setScale,
+    undo,
+    redo,
+    undoStack,
+    redoStack,
+    setSchema,
+    resetSchema,
+    schema,
+    selectedWidgetId,
+    isFormatPainterActive,
+    toggleFormatPainter
+  } = useLegoDesignerStore();
+  const { userInput, analysisResult, templateOptions, customTemplateHTML, setSelectedTemplate } = useResumeStore();
 
   const handleClearCanvas = () => {
     if (confirm('确定要重置并清空当前画布吗？所有已添加的积木物料将被清除。')) {
@@ -57,38 +69,47 @@ export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScre
   }, []);
 
   const handleReloadAiData = () => {
-    if (confirm('确定要用最新 AI 润色数据覆盖当前积木画布吗？未保存的手动拖拽调整将被重置。')) {
-      const freshSchema = buildLegoSchemaFromResume(userInput, analysisResult, selectedTemplate, templateOptions, customTemplateHTML);
-      setSchema(freshSchema, true);
+    if (confirm('确定要用最新 AI 润色数据重新装填当前积木画布的文本内容吗？')) {
+      const filledSchema = fillAiDataIntoExistingSchema(schema, userInput, analysisResult);
+      setSchema(filledSchema, true);
     }
   };
 
   const handleImportTemplate = (tplId: string) => {
     setShowTplMenu(false);
-    
-    // 1. Check built-in preset templates
-    const preset = PRESET_TEMPLATES.find(t => t.id === tplId);
-    if (preset) {
-      if (confirm(`确定要应用【${preset.name}】模板吗？当前画布中的内容与样式将被重置。`)) {
-        setSchema(preset.schema, true);
+
+    if (tplId === 'blank') {
+      if (confirm('确定要清空画布重构为空白画布吗？所有已添加的积木物料将被清除。')) {
+        resetSchema();
       }
       return;
     }
 
-    // 2. Dynamic AI templates built from resume data
     const tplNames: Record<string, string> = {
-      'modern-sidebar': '1.3 现代双栏',
+      'classic-minimal': '经典极简单栏',
+      'classic': '经典极简单栏',
+      'modern-sidebar': '现代深色双栏',
+      'modern': '现代深色双栏',
       'corporate-banner': '商务 Header 沉稳范',
       'timeline-tech': '时间轴极客型',
       'grid-cards': '微阴影卡片流',
-      'classic-minimal': '经典极简单栏',
+      'minimal': '🌿 简约清新风格',
+      'github-tech': 'Github 极客代码',
       'custom': '✨ AI 动态识别自定义模板'
     };
 
+    const targetTemplateId = (tplId === 'classic' ? 'classic-minimal' : tplId === 'modern' ? 'modern-sidebar' : tplId) as TemplateId;
     const name = tplNames[tplId] || tplId;
-    if (confirm(`确定要将【${name}】排版转换并导入到积木画布吗？当前画布中的手改样式将被此模板重置。`)) {
-      setSelectedTemplate(tplId as TemplateId);
-      const freshSchema = buildLegoSchemaFromResume(userInput, analysisResult, tplId as TemplateId, templateOptions, customTemplateHTML);
+
+    if (confirm(`确定要将【${name}】排版转换并装填优化后的简历数据到积木画布吗？`)) {
+      setSelectedTemplate(targetTemplateId);
+      const freshSchema = buildLegoSchemaFromResume(
+        userInput,
+        analysisResult,
+        targetTemplateId,
+        templateOptions,
+        customTemplateHTML
+      );
       setSchema(freshSchema, true);
     }
   };
@@ -123,7 +144,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScre
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (parsed && typeof parsed === 'object') {
-          setSchema(parsed, true);
+          const filledSchema = fillAiDataIntoExistingSchema(parsed, userInput, analysisResult);
+          setSelectedTemplate('custom' as TemplateId);
+          setSchema(filledSchema, true);
+          alert('🎉 积木 JSON 模板导入成功！已自动将优化后的简历文本替换填充至该模板。');
         } else {
           alert('无效的积木配置文件');
         }
@@ -133,6 +157,32 @@ export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScre
     };
     reader.readAsText(file);
     e.target.value = '';
+  };
+
+  const handleFitWidth = () => {
+    const pageEl = document.getElementById('lego-canvas-page');
+    const container = pageEl?.parentElement?.parentElement || pageEl?.parentElement;
+    if (container && container.clientWidth) {
+      const availableWidth = container.clientWidth;
+      const computedScale = Number(((availableWidth - 50) / 820).toFixed(2));
+      const finalScale = Math.min(1.5, Math.max(0.75, computedScale));
+      setScale(finalScale);
+    } else {
+      setScale(1.15);
+    }
+  };
+
+  const handleFitPage = () => {
+    const pageEl = document.getElementById('lego-canvas-page');
+    const container = pageEl?.parentElement?.parentElement || pageEl?.parentElement;
+    if (container && container.clientHeight) {
+      const availableHeight = container.clientHeight;
+      const computedScale = Number(((availableHeight - 60) / 1160).toFixed(2));
+      const finalScale = Math.min(1.2, Math.max(0.45, computedScale));
+      setScale(finalScale);
+    } else {
+      setScale(0.65);
+    }
   };
 
   return (
@@ -171,6 +221,26 @@ export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScre
           <Redo2 className="w-3.5 h-3.5" />
         </button>
 
+        <button
+          className={`p-1 sm:p-1.5 rounded transition-all cursor-pointer flex items-center gap-1 ${
+            isFormatPainterActive
+              ? 'bg-amber-500 text-white font-bold ring-2 ring-amber-400 shadow-md shadow-amber-500/30'
+              : 'hover:bg-slate-700 text-slate-300'
+          }`}
+          onClick={() => toggleFormatPainter()}
+          disabled={!selectedWidgetId && !isFormatPainterActive}
+          title={
+            isFormatPainterActive
+              ? '格式刷已激活！点击画布上任意目标组件应用复制的样式'
+              : selectedWidgetId
+              ? '格式刷：提取当前选中组件样式并刷给其他组件'
+              : '格式刷（请先在画布上选择一个源组件）'
+          }
+        >
+          <Paintbrush className="w-3.5 h-3.5" />
+          {isFormatPainterActive && <span className="text-[10px] hidden sm:inline">刷样式中</span>}
+        </button>
+
         <div className="h-3.5 w-px bg-slate-700 mx-0.5 sm:mx-1" />
 
         <button
@@ -195,15 +265,15 @@ export const Toolbar: React.FC<ToolbarProps> = ({ isFullScreen, onToggleFullScre
 
         <button
           className="px-1.5 py-1 text-[10px] sm:text-[11px] font-medium text-slate-300 hover:bg-slate-700 rounded transition-colors hidden xl:block cursor-pointer whitespace-nowrap"
-          onClick={() => setScale(0.65)}
-          title="适应整页"
+          onClick={handleFitPage}
+          title="自动适应当前窗口高度显示完整单页"
         >
           适应整页
         </button>
         <button
           className="px-1.5 py-1 text-[10px] sm:text-[11px] font-medium text-slate-300 hover:bg-slate-700 rounded transition-colors hidden xl:block cursor-pointer whitespace-nowrap"
-          onClick={() => setScale(0.85)}
-          title="适应页宽"
+          onClick={handleFitWidth}
+          title="自动测量中央画布视口宽度并大幅度充盈铺满"
         >
           适应页宽
         </button>

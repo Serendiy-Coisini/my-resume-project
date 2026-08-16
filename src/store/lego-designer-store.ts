@@ -51,6 +51,9 @@ function deepClone<T>(obj: T): T {
 interface LegoDesignerState {
   schema: IHJSchema;
   selectedWidgetId: string | null;
+  selectedWidgetIds: string[];
+  copiedStyle: Partial<IWidgetCss> | null;
+  isFormatPainterActive: boolean;
   pageActiveIndex: number;
   scale: number;
   undoStack: IHJSchema[];
@@ -61,8 +64,20 @@ interface LegoDesignerState {
   pushHistoryState: () => void;
   setSchema: (schema: IHJSchema | Record<string, unknown> | unknown, saveHistory?: boolean) => void;
   setSelectedWidgetId: (id: string | null) => void;
+  setSelectedWidgetIds: (ids: string[]) => void;
+  toggleWidgetSelection: (id: string, isMulti?: boolean) => void;
   setPageActiveIndex: (index: number) => void;
   setScale: (scale: number | ((prev: number) => number)) => void;
+
+  // Format painter actions
+  copyWidgetStyle: (widgetId?: string) => void;
+  applyCopiedStyle: (targetWidgetId: string) => void;
+  toggleFormatPainter: (active?: boolean) => void;
+
+  // Batch widget actions
+  batchMoveWidgets: (widgetIds: string[], deltaX: number, deltaY: number, initialPositions: Record<string, { left: number; top: number }>, saveHistory?: boolean) => void;
+  batchDeleteWidgets: (widgetIds?: string[], saveHistory?: boolean) => void;
+  alignWidgets: (type: 'left' | 'centerX' | 'right' | 'top' | 'centerY' | 'bottom' | 'distributeH' | 'distributeV', widgetIds?: string[], saveHistory?: boolean) => void;
 
   updateWidgetCss: (widgetId: string, cssUpdate: Partial<IWidgetCss>, saveHistory?: boolean) => void;
   updateWidgetDataSource: (widgetId: string, dataUpdate: Partial<IWidgetDataSource>, saveHistory?: boolean) => void;
@@ -118,6 +133,9 @@ export const useLegoDesignerStore = create<LegoDesignerState>((set, get) => {
   return {
     schema: deepClone(DEFAULT_LEGO_SCHEMA),
     selectedWidgetId: null,
+    selectedWidgetIds: [],
+    copiedStyle: null,
+    isFormatPainterActive: false,
     pageActiveIndex: 0,
     scale: 0.62,
     undoStack: [],
@@ -136,12 +154,288 @@ export const useLegoDesignerStore = create<LegoDesignerState>((set, get) => {
         const historyUpdate = saveHistory ? saveStateToHistory(state.schema) : {};
         return {
           schema: normalized,
+          selectedWidgetId: null,
+          selectedWidgetIds: [],
           ...historyUpdate
         };
       });
     },
 
-    setSelectedWidgetId: (id) => set({ selectedWidgetId: id }),
+    setSelectedWidgetId: (id) =>
+      set({
+        selectedWidgetId: id,
+        selectedWidgetIds: id ? [id] : []
+      }),
+
+    setSelectedWidgetIds: (ids) =>
+      set({
+        selectedWidgetIds: ids,
+        selectedWidgetId: ids.length > 0 ? ids[ids.length - 1] : null
+      }),
+
+    toggleWidgetSelection: (id, isMulti = false) => {
+      const { selectedWidgetIds } = get();
+      if (!isMulti) {
+        set({
+          selectedWidgetId: id,
+          selectedWidgetIds: [id]
+        });
+        return;
+      }
+      const exists = selectedWidgetIds.includes(id);
+      const newIds = exists ? selectedWidgetIds.filter((item) => item !== id) : [...selectedWidgetIds, id];
+      set({
+        selectedWidgetIds: newIds,
+        selectedWidgetId: newIds.length > 0 ? newIds[newIds.length - 1] : null
+      });
+    },
+
+    // Format Painter Actions
+    copyWidgetStyle: (targetId) => {
+      const { selectedWidgetId, schema } = get();
+      const idToCopy = targetId || selectedWidgetId;
+      if (!idToCopy) return;
+
+      let foundWidget: IWidget | null = null;
+      for (const page of schema.componentsTree) {
+        if (!page.children) continue;
+        const found = page.children.find((w) => w.id === idToCopy);
+        if (found) {
+          foundWidget = found;
+          break;
+        }
+      }
+
+      if (foundWidget && foundWidget.css) {
+        const c = foundWidget.css;
+        const isTextOrExper =
+          foundWidget.componentName.includes('text') ||
+          foundWidget.componentName.includes('exper') ||
+          foundWidget.componentName === 'hj-li' ||
+          foundWidget.componentName.includes('date');
+
+        const styleToCopy: Partial<IWidgetCss> = {
+          fontColor: c.fontColor || '#334155',
+          fontFamily: c.fontFamily || 'Inter, sans-serif',
+          fontSize: c.fontSize || (isTextOrExper ? 13 : 14),
+          fontWeight: c.fontWeight || 'normal',
+          letterSpace: c.letterSpace || 0,
+          lineHeight: c.lineHeight || 1.6,
+          textAlign: c.textAlign || 'left',
+          backgroundColor: c.backgroundColor || 'transparent',
+          borderColor: c.borderColor || 'transparent',
+          borderStyle: c.borderStyle || 'none',
+          borderWidth: c.borderWidth !== undefined ? c.borderWidth : 0,
+          borderRadius: c.borderRadius !== undefined ? c.borderRadius : 0,
+          rotate: c.rotate || 0
+        };
+
+        if (c.borderLeftColor) styleToCopy.borderLeftColor = c.borderLeftColor;
+        if (c.borderLeftStyle) styleToCopy.borderLeftStyle = c.borderLeftStyle;
+        if (c.borderLeftWidth !== undefined) styleToCopy.borderLeftWidth = c.borderLeftWidth;
+        if (c.paddingLeft !== undefined) styleToCopy.paddingLeft = c.paddingLeft;
+        if (c.opacity !== undefined) styleToCopy.opacity = c.opacity;
+
+        set({ copiedStyle: styleToCopy, isFormatPainterActive: true });
+      }
+    },
+
+    applyCopiedStyle: (targetWidgetId) => {
+      const { copiedStyle, schema, selectedWidgetIds } = get();
+      if (!copiedStyle || !targetWidgetId) return;
+
+      const targets =
+        selectedWidgetIds.includes(targetWidgetId) && selectedWidgetIds.length > 1
+          ? selectedWidgetIds
+          : [targetWidgetId];
+
+      const historyUpdate = saveStateToHistory(schema);
+      const newSchema = deepClone(schema);
+
+      const cleanHtml = (val: unknown): unknown => {
+        if (typeof val === 'string') {
+          return val
+            .replace(/\s*style=(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+            .replace(/\s*(?:color|size|face)=(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+            .replace(/\[color=(.*?)\](.*?)\[\/color\]/gi, '$2')
+            .replace(/\[size=(.*?)\](.*?)\[\/size\]/gi, '$2')
+            .replace(/\[bg=(.*?)\](.*?)\[\/bg\]/gi, '$2');
+        }
+        if (Array.isArray(val)) {
+          return val.map((item) => cleanHtml(item));
+        }
+        return val;
+      };
+
+      for (const page of newSchema.componentsTree) {
+        if (!page.children) continue;
+        for (const widget of page.children) {
+          if (targets.includes(widget.id)) {
+            // Apply copied CSS
+            widget.css = {
+              ...widget.css,
+              ...copiedStyle
+            };
+
+            // Strip inline HTML style overrides so widget.css takes full effect
+            if (widget.dataSource) {
+              if (typeof widget.dataSource.text === 'string') {
+                widget.dataSource.text = cleanHtml(widget.dataSource.text) as string;
+              }
+              if (typeof widget.dataSource.workContent === 'string') {
+                widget.dataSource.workContent = cleanHtml(widget.dataSource.workContent) as string;
+              }
+              if (typeof widget.dataSource.companyName === 'string') {
+                widget.dataSource.companyName = cleanHtml(widget.dataSource.companyName) as string;
+              }
+              if (Array.isArray(widget.dataSource.list)) {
+                widget.dataSource.list = cleanHtml(widget.dataSource.list) as string[];
+              }
+            }
+          }
+        }
+      }
+
+      set({
+        schema: newSchema,
+        selectedWidgetId: targetWidgetId,
+        selectedWidgetIds: [targetWidgetId],
+        isFormatPainterActive: false,
+        ...historyUpdate
+      });
+    },
+
+    toggleFormatPainter: (active) => {
+      const { isFormatPainterActive, copyWidgetStyle } = get();
+      const nextActive = active !== undefined ? active : !isFormatPainterActive;
+      if (nextActive) {
+        copyWidgetStyle();
+      } else {
+        set({ isFormatPainterActive: false });
+      }
+    },
+
+    // Batch operations
+    batchMoveWidgets: (widgetIds, deltaX, deltaY, initialPositions, saveHistory = true) => {
+      const { schema } = get();
+      const historyUpdate = saveHistory ? saveStateToHistory(schema) : {};
+      const newSchema = deepClone(schema);
+
+      for (const page of newSchema.componentsTree) {
+        if (!page.children) continue;
+        for (const widget of page.children) {
+          if (widgetIds.includes(widget.id) && initialPositions[widget.id]) {
+            const initPos = initialPositions[widget.id];
+            widget.css.left = Math.max(0, Math.round(initPos.left + deltaX));
+            widget.css.top = Math.max(0, Math.round(initPos.top + deltaY));
+          }
+        }
+      }
+
+      set({ schema: newSchema, ...historyUpdate });
+    },
+
+    batchDeleteWidgets: (widgetIdsArg, saveHistory = true) => {
+      const { schema, selectedWidgetIds } = get();
+      const targets = widgetIdsArg || selectedWidgetIds;
+      if (!targets || targets.length === 0) return;
+
+      const historyUpdate = saveHistory ? saveStateToHistory(schema) : {};
+      const newSchema = deepClone(schema);
+
+      for (const page of newSchema.componentsTree) {
+        if (!page.children) continue;
+        page.children = page.children.filter((item) => !targets.includes(item.id));
+      }
+
+      set({
+        schema: newSchema,
+        selectedWidgetId: null,
+        selectedWidgetIds: [],
+        ...historyUpdate
+      });
+    },
+
+    alignWidgets: (type, targetIdsArg, saveHistory = true) => {
+      const { schema, selectedWidgetIds, selectedWidgetId } = get();
+      const targets = targetIdsArg || (selectedWidgetIds.length > 0 ? selectedWidgetIds : selectedWidgetId ? [selectedWidgetId] : []);
+      if (targets.length === 0) return;
+
+      const historyUpdate = saveHistory ? saveStateToHistory(schema) : {};
+      const newSchema = deepClone(schema);
+
+      const pageWidth = newSchema.css?.width || 820;
+      const pageHeight = newSchema.css?.height || 1160;
+
+      // Find all target widgets
+      const targetWidgets: IWidget[] = [];
+      for (const page of newSchema.componentsTree) {
+        if (!page.children) continue;
+        for (const w of page.children) {
+          if (targets.includes(w.id)) {
+            targetWidgets.push(w);
+          }
+        }
+      }
+
+      if (targetWidgets.length === 0) return;
+
+      if (targetWidgets.length === 1) {
+        // Align single widget relative to Canvas page
+        const w = targetWidgets[0];
+        if (type === 'left') w.css.left = 0;
+        if (type === 'centerX') w.css.left = Math.max(0, Math.round((pageWidth - w.css.width) / 2));
+        if (type === 'right') w.css.left = Math.max(0, pageWidth - w.css.width);
+        if (type === 'top') w.css.top = 0;
+        if (type === 'centerY') w.css.top = Math.max(0, Math.round((pageHeight - w.css.height) / 2));
+        if (type === 'bottom') w.css.top = Math.max(0, pageHeight - w.css.height);
+      } else {
+        // Multi-widget alignment relative to selection bounding box
+        const minLeft = Math.min(...targetWidgets.map((w) => w.css.left));
+        const maxRight = Math.max(...targetWidgets.map((w) => w.css.left + w.css.width));
+        const minTop = Math.min(...targetWidgets.map((w) => w.css.top));
+        const maxBottom = Math.max(...targetWidgets.map((w) => w.css.top + w.css.height));
+
+        const boundingWidth = maxRight - minLeft;
+        const boundingHeight = maxBottom - minTop;
+        const centerX = minLeft + boundingWidth / 2;
+        const centerY = minTop + boundingHeight / 2;
+
+        if (type === 'left') {
+          targetWidgets.forEach((w) => (w.css.left = minLeft));
+        } else if (type === 'centerX') {
+          targetWidgets.forEach((w) => (w.css.left = Math.round(centerX - w.css.width / 2)));
+        } else if (type === 'right') {
+          targetWidgets.forEach((w) => (w.css.left = Math.round(maxRight - w.css.width)));
+        } else if (type === 'top') {
+          targetWidgets.forEach((w) => (w.css.top = minTop));
+        } else if (type === 'centerY') {
+          targetWidgets.forEach((w) => (w.css.top = Math.round(centerY - w.css.height / 2)));
+        } else if (type === 'bottom') {
+          targetWidgets.forEach((w) => (w.css.top = Math.round(maxBottom - w.css.height)));
+        } else if (type === 'distributeH' && targetWidgets.length >= 3) {
+          const sorted = [...targetWidgets].sort((a, b) => a.css.left - b.css.left);
+          const totalWidth = sorted.reduce((sum, w) => sum + w.css.width, 0);
+          const gap = (maxRight - minLeft - totalWidth) / (sorted.length - 1);
+          let currentX = minLeft;
+          sorted.forEach((w) => {
+            w.css.left = Math.round(currentX);
+            currentX += w.css.width + gap;
+          });
+        } else if (type === 'distributeV' && targetWidgets.length >= 3) {
+          const sorted = [...targetWidgets].sort((a, b) => a.css.top - b.css.top);
+          const totalHeight = sorted.reduce((sum, w) => sum + w.css.height, 0);
+          const gap = (maxBottom - minTop - totalHeight) / (sorted.length - 1);
+          let currentY = minTop;
+          sorted.forEach((w) => {
+            w.css.top = Math.round(currentY);
+            currentY += w.css.height + gap;
+          });
+        }
+      }
+
+      set({ schema: newSchema, ...historyUpdate });
+    },
 
     setPageActiveIndex: (index) => set({ pageActiveIndex: index }),
 

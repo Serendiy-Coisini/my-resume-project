@@ -7,6 +7,7 @@ export type TemplateId =
   | "grid-cards"
   | "classic-minimal"
   | "github-tech"
+  | "minimal"
   | "custom";
 
 export interface TemplateConfig {
@@ -28,6 +29,13 @@ export const DEFAULT_TEMPLATE_OPTIONS: TemplateOptions = {
 };
 
 export const TEMPLATES: TemplateConfig[] = [
+  {
+    id: "minimal",
+    name: "简约清新风格",
+    description: "薄荷绿主题调，极大留白，布局清新优雅，适合设计师与产品/运营岗位",
+    tag: "清新优雅",
+    color: "#059669",
+  },
   {
     id: "modern-sidebar",
     name: "现代双栏卡片",
@@ -334,6 +342,79 @@ function renderTemplateHTMLInternal(
   // Custom Uploaded Template
   if (templateId === "custom" && customTemplateHTML) {
     return compileCustomTemplate(customTemplateHTML, resume, options);
+  }
+
+  // 0. Minimal Fresh Green Template (简约清新风格)
+  if (templateId === "minimal") {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>${p.name} - 个人简历</title>
+        <style>
+          @page { size: A4; margin: ${marginVal}; }
+          * { box-sizing: border-box; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: ${fontVal}; line-height: ${lhVal}; color: #374151; margin: 0; padding: 6px 16px; background: #fff; word-break: break-word; overflow-wrap: break-word; }
+          .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #059669; padding-bottom: 8px; margin-bottom: 14px; }
+          .name { font-size: 24px; font-weight: 700; color: #065f46; letter-spacing: 0.5px; }
+          .intent { font-size: 13px; font-weight: 600; color: #059669; margin-top: 2px; }
+          .contact { font-size: 12px; color: #4b5563; text-align: right; }
+          .sec-title { font-size: 15px; font-weight: 700; color: #065f46; border-left: 3px solid #059669; padding-left: 10px; margin-top: ${secMT}; margin-bottom: ${secMB}; text-transform: uppercase; letter-spacing: 0.5px; }
+          .item-head { display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; color: #111827; margin-top: 6px; }
+          .work-item, .project-item { margin-bottom: ${itemMB}; page-break-inside: avoid; break-inside: avoid; }
+          ul { margin: 3px 0 ${ulMB} 0; padding-left: 18px; }
+          li { margin-bottom: ${liMB}; color: #374151; line-height: ${lhVal}; }
+          p { margin: 3px 0; line-height: ${lhVal}; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="name">${p.name}</div>
+            <div class="intent">求职意向：${resume.jobIntent}</div>
+          </div>
+          <div class="contact">
+            ${avatarTag ? `<div style="margin-bottom:4px;">${avatarTag}</div>` : ""}
+            <div>${p.email} &nbsp;|&nbsp; ${p.phone} &nbsp;|&nbsp; ${p.location}</div>
+          </div>
+        </div>
+
+        <div class="sec-title">▌ 个人优势 & 核心能力 PROFILE</div>
+        <p>${resume.summary}</p>
+
+        <div class="sec-title">▌ 工作经历 WORK EXPERIENCE</div>
+        ${resume.workExperience
+          .map(
+            (w) => `
+          <div class="work-item">
+            <div class="item-head"><span>${w.company} · ${w.role}</span><span>${w.period}</span></div>
+            <ul>${w.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+          </div>
+        `
+          )
+          .join("")}
+
+        <div class="sec-title">▌ 项目经验 PROJECT EXPERIENCE</div>
+        ${resume.projectExperience
+          .map(
+            (pr) => `
+          <div class="project-item">
+            <div class="item-head"><span>${pr.name} · ${pr.role}</span><span>${pr.period}</span></div>
+            <ul>${pr.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+          </div>
+        `
+          )
+          .join("")}
+
+        <div class="sec-title">▌ 教育背景 EDUCATION</div>
+        <p>${resume.education.school} · ${resume.education.degree} · ${resume.education.period}</p>
+
+        <div class="sec-title">▌ 技能软件 & 工具 SKILLS & TOOLS</div>
+        <p>${resume.skillsAndTools.join(" · ")}</p>
+      </body>
+      </html>
+    `;
   }
 
   // 1. Classic Minimal Single Column Template

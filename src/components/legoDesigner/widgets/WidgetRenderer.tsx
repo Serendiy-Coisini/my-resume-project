@@ -42,7 +42,7 @@ export const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget }) => {
     fontWeight: css.fontWeight,
     fontFamily: css.fontFamily,
     letterSpacing: css.letterSpace ? `${css.letterSpace}px` : undefined,
-    lineHeight: css.lineHeight,
+    lineHeight: css.lineHeight || (isTextType ? 1.6 : undefined),
     textAlign: css.textAlign,
     borderColor: css.borderColor || 'transparent',
     borderStyle: (css.borderStyle as React.CSSProperties['borderStyle']) || 'none',
@@ -166,7 +166,7 @@ export const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget }) => {
     }
     return (
       <div style={shapeStyle}>
-        {dataSource.text && <div>{renderFormattedText(dataSource.text as string)}</div>}
+        {dataSource.text && <div style={{ maxWidth: '100%', wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'pre-wrap', padding: '2px 4px' }}>{renderFormattedText(dataSource.text as string)}</div>}
       </div>
     );
   }

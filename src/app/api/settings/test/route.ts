@@ -26,9 +26,20 @@ export async function POST(req: NextRequest) {
     });
 
     if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      const errMsg = (errData as Record<string, Record<string, string>>)?.error?.message || `HTTP ${response.status}`;
-      return NextResponse.json({ success: false, error: `API 返回错误: ${errMsg}` });
+      const errText = await response.text().catch(() => "");
+      let errMsg = `HTTP ${response.status}`;
+      try {
+        const errData = JSON.parse(errText);
+        errMsg = errData?.error?.message || errMsg;
+      } catch {
+        if (errText) errMsg = errText.slice(0, 200);
+      }
+      if (response.status === 429 || errText.includes("quota") || errText.includes("insufficient_quota")) {
+        errMsg = "API Key 额度已用尽 (HTTP 429 Insufficient Quota)，请检查账户余额或使用其他 Key。";
+      } else if (response.status === 401 || errText.includes("invalid_api_key")) {
+        errMsg = "API Key 无效或未授权 (HTTP 401 Unauthorized)，请检查 Key 是否填写正确。";
+      }
+      return NextResponse.json({ success: false, error: `连接失败: ${errMsg}` });
     }
 
     const data = await response.json();

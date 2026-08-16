@@ -86,12 +86,22 @@ async function callChatCompletions(
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
-    throw new LLMError(
-      detail
-        ? `大模型请求失败 (${response.status}): ${detail.slice(0, 300)}`
-        : `大模型请求失败 (${response.status})`,
-      response.status
-    );
+    let userFriendlyMsg = "";
+    if (
+      response.status === 429 ||
+      detail.includes("insufficient_quota") ||
+      detail.includes("quota") ||
+      detail.includes("Allocated quota exceeded")
+    ) {
+      userFriendlyMsg = "AI 大模型 API Key 额度已用尽 (HTTP 429 Insufficient Quota)。请前往右上方「AI 配置」更换有效 Key，或点击下方重置为 Mock 免费模式。";
+    } else if (response.status === 401 || detail.includes("invalid_api_key")) {
+      userFriendlyMsg = "AI 大模型 API Key 无效或未授权 (HTTP 401 Unauthorized)。请前往右上方「AI 配置」重新检查密钥。";
+    } else {
+      userFriendlyMsg = detail
+        ? `大模型请求失败 (${response.status}): ${detail.slice(0, 200)}`
+        : `大模型请求失败 (${response.status})`;
+    }
+    throw new LLMError(userFriendlyMsg, response.status);
   }
 
   return (await response.json()) as {

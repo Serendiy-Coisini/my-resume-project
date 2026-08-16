@@ -258,7 +258,7 @@ export function TemplateSelector({ onImportToLego }: TemplateSelectorProps = {})
                 </DialogTrigger>
                 <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
+                    <DialogTitle className="flex items-center gap-2 text-neutral-900 font-bold">
                       <FileCode2 className="h-4 w-4 text-purple-600" />
                       自定义简历 HTML/CSS 模板代码
                     </DialogTitle>

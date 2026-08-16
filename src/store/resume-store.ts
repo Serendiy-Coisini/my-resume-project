@@ -9,6 +9,14 @@ import type {
 } from "@/types/resume";
 import type { AIMode } from "@/lib/ai/types";
 import { DEFAULT_CUSTOM_TEMPLATE_HTML } from "@/lib/resume-templates";
+import { useHistoryStore, type HistorySession } from "@/store/history-store";
+
+function createSessionId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `session-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 const STEPS: StepId[] = [
   "input",
@@ -46,6 +54,7 @@ interface ResumeStore {
   customTemplateHTML: string;
   copied: boolean;
   maxReachedStepIndex: number;
+  sessionId: string;
 
   setUserInput: (input: Partial<UserInput>) => void;
   setEnablePIIMasking: (enabled: boolean) => void;
@@ -66,6 +75,8 @@ interface ResumeStore {
   setFollowUpBullet: (id: string, bullet: string) => void;
   getStepStatus: (stepId: StepId) => StepStatus;
   setCopied: (copied: boolean) => void;
+  archiveCurrentSession: () => void;
+  restoreFromHistory: (session: HistorySession) => void;
   reset: () => void;
   goToNextStep: () => void;
   goToPreviousStep: () => void;
@@ -81,6 +92,27 @@ const defaultUserInput: UserInput = {
   originalResume: "",
   additionalInfo: "",
 };
+
+type ArchivableState = Pick<
+  ResumeStore,
+  "sessionId" | "userInput" | "analysisResult" | "currentStep" | "maxReachedStepIndex" | "optimizeStyle"
+>;
+
+function archiveIfAvailable(state: ArchivableState) {
+  const { analysisResult, userInput } = state;
+  if (!analysisResult || !userInput.jobDescription.trim()) return;
+  useHistoryStore.getState().saveSession({
+    id: state.sessionId,
+    createdAt: Date.now(),
+    targetRole: userInput.targetRole,
+    jdExcerpt: userInput.jobDescription.replace(/\s+/g, " ").trim().slice(0, 80),
+    userInput,
+    analysisResult,
+    currentStep: state.currentStep,
+    maxReachedStepIndex: state.maxReachedStepIndex,
+    optimizeStyle: state.optimizeStyle,
+  });
+}
 
 export const useResumeStore = create<ResumeStore>()(
   persist(
@@ -102,6 +134,7 @@ export const useResumeStore = create<ResumeStore>()(
       customTemplateHTML: DEFAULT_CUSTOM_TEMPLATE_HTML,
       copied: false,
       maxReachedStepIndex: 0,
+      sessionId: createSessionId(),
 
       setUserInput: (input) =>
         set((state) => ({
@@ -193,10 +226,18 @@ Axure · Figma · Python (数据分析) · SQL · Prompt Optimization · LangCha
       },
 
       setAnalyzing: (analyzing) =>
-        set((state) => ({
-          isAnalyzing: analyzing,
-          ...(analyzing && state.currentStep === "input" ? { maxReachedStepIndex: 0, analysisResult: null } : {}),
-        })),
+        set((state) => {
+          if (analyzing && state.currentStep === "input") {
+            archiveIfAvailable(state);
+            return {
+              isAnalyzing: analyzing,
+              maxReachedStepIndex: 0,
+              analysisResult: null,
+              sessionId: createSessionId(),
+            };
+          }
+          return { isAnalyzing: analyzing };
+        }),
 
       setAnalysisResult: (result) => set({ analysisResult: result, analysisError: null }),
 
@@ -261,7 +302,25 @@ Axure · Figma · Python (数据分析) · SQL · Prompt Optimization · LangCha
 
       setCopied: (copied) => set({ copied }),
 
-      reset: () =>
+      archiveCurrentSession: () => archiveIfAvailable(get()),
+
+      restoreFromHistory: (session) => {
+        archiveIfAvailable(get());
+        set({
+          sessionId: session.id,
+          userInput: session.userInput,
+          analysisResult: session.analysisResult,
+          currentStep: session.currentStep,
+          maxReachedStepIndex: session.maxReachedStepIndex,
+          optimizeStyle: session.optimizeStyle,
+          analysisError: null,
+          isAnalyzing: false,
+          analysisStage: null,
+        });
+      },
+
+      reset: () => {
+        archiveIfAvailable(get());
         set({
           userInput: defaultUserInput,
           currentStep: "input" as StepId,
@@ -274,7 +333,9 @@ Axure · Figma · Python (数据分析) · SQL · Prompt Optimization · LangCha
           customTemplateHTML: DEFAULT_CUSTOM_TEMPLATE_HTML,
           copied: false,
           maxReachedStepIndex: 0,
-        }),
+          sessionId: createSessionId(),
+        });
+      },
 
       goToNextStep: () => {
         const { currentStep, maxReachedStepIndex } = get();
@@ -303,6 +364,7 @@ Axure · Figma · Python (数据分析) · SQL · Prompt Optimization · LangCha
         analysisResult: state.analysisResult,
         optimizeStyle: state.optimizeStyle,
         maxReachedStepIndex: state.maxReachedStepIndex,
+        sessionId: state.sessionId,
       }),
     }
   )

@@ -5,3 +5,4 @@ out
 *.tsbuildinfo
 resume-design-main
 .DS_Store
+.zcode/

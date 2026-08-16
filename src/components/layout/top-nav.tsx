@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { fetchAIStatus } from "@/services/ai/resumeAgent";
+import { HistoryDialog } from "@/components/layout/history-dialog";
 import { useResumeStore } from "@/store/resume-store";
 
 export function TopNav({ onMenuClick }: { onMenuClick?: () => void }) {
@@ -75,6 +76,8 @@ export function TopNav({ onMenuClick }: { onMenuClick?: () => void }) {
             <span>⚙️ AI 配置</span>
           </Button>
         </Link>
+
+        <HistoryDialog />
 
         {analysisResult && (
           <Button variant="ghost" size="sm" className="h-8 text-xs text-neutral-500 px-2" onClick={handleReset}>

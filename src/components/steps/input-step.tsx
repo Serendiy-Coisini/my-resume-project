@@ -1,13 +1,18 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import {
+  AlertCircle,
   Camera,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   FileUp,
+  ImageIcon,
   Loader2,
+  RotateCcw,
+  Settings,
   ShieldCheck,
   Sparkles,
   User,
@@ -33,6 +38,11 @@ import { useResumeStore } from "@/store/resume-store";
 import type { CompanyType, JobStage } from "@/types/resume";
 import { COMPANY_TYPE_OPTIONS, getCompanyTypeOption } from "@/lib/company-config";
 import { JOB_STAGE_OPTIONS, getJobStageOption } from "@/lib/job-stage-config";
+import {
+  detectIndustrySmart,
+  ALL_INDUSTRY_GROUPS,
+  POPULAR_INDUSTRIES,
+} from "@/lib/industry-detector";
 
 const STAGE_STEPS = [
   { id: "jd-analysis", name: "JD 拆解", label: "正在拆解岗位 JD 核心要求", startPct: 15, endPct: 35 },
@@ -40,124 +50,6 @@ const STAGE_STEPS = [
   { id: "optimize", name: "简历改写", label: "正在定制优化简历 Bullet Points", startPct: 70, endPct: 82 },
   { id: "interview", name: "面试预测", label: "正在预测高频面试考点与回答", startPct: 85, endPct: 95 },
 ];
-
-function detectIndustrySmart(targetRole: string = "", jobDescription: string = ""): string {
-  const roleText = (targetRole || "").trim().toLowerCase();
-  const jdText = (jobDescription || "").trim().toLowerCase();
-
-
-  if (!roleText && !jdText) {
-    return "互联网 / 软件工程";
-  }
-
-  const rules: { industry: string; primary: string[]; secondary: string[] }[] = [
-    {
-      industry: "互联网 / 软件工程",
-      primary: [
-        "java", "后端", "服务端", "全栈", "软件工程师", "软件开发",
-        "python", "golang", "go语言", "c++", "c#", ".net", "架构师",
-        "测试工程师", "qa", "运维", "devops", "数据库", "微服务",
-        "前端", "web前端", "系统工程师", "技术专家", "系统架构"
-      ],
-      secondary: ["软件", "程序员", "代码", "基础架构", "中间件", "性能优化", "研发"],
-    },
-    {
-      industry: "人工智能 / AIGC",
-      primary: [
-        "aigc", "llm", "大模型", "nlp", "cv", "生成式ai", "深度学习",
-        "算法工程师", "机器学习", "transformer", "prompt工程师", "大语言模型",
-        "rag", "langchain", "模型微调"
-      ],
-      secondary: ["ai产品", "ai应用", "智能体", "agent", "pytorch", "tensorflow", "aigc应用"],
-    },
-    {
-      industry: "互联网 / SaaS",
-      primary: ["saas", "tob服务", "企业服务", "crm系统", "erp系统", "oa系统", "协同办公", "prm"],
-      secondary: ["云计算", "paas", "软件服务", "b端产品"],
-    },
-    {
-      industry: "芯片 / 半导体",
-      primary: ["半导体", "芯片", "ic设计", "晶圆", "eda", "fpga", "vlsi", "光刻", "封装测试", "数字前端", "模拟电路"],
-      secondary: ["soc", "verilog", "asic", "集成电路"],
-    },
-    {
-      industry: "新能源 / 智能汽车",
-      primary: ["新能源汽车", "自动驾驶", "智驾", "动力电池", "储能", "三电系统", "智能座舱", "车联网", "adas"],
-      secondary: ["整车", "特斯拉", "比亚迪", "蔚来", "小鹏", "理想", "汽车", "底盘"],
-    },
-    {
-      industry: "金融科技 / FinTech",
-      primary: ["金融科技", "fintech", "风控算法", "量化交易", "证券", "基金", "信贷风控", "支付结算", "保险科技", "核心交易系统"],
-      secondary: ["银行", "金融", "财富管理", "资产管理", "券商"],
-    },
-    {
-      industry: "医疗健康 / 生物医药",
-      primary: ["生物医药", "医疗器械", "临床试验", "创新药", "基因测序", "靶点", "体外诊断", "ivd", "智慧医疗", "医疗软件"],
-      secondary: ["医疗", "医院", "药企", "健康管理", "护理"],
-    },
-    {
-      industry: "电商 / 跨境电商",
-      primary: ["跨境电商", "亚马逊", "amazon", "shopee", "lazada", "ebay", "独立站", "淘宝", "京东", "拼多多", "直播带货", "gmv"],
-      secondary: ["电商", "选品", "类目经理", "供应链管理", "转化率", "店铺运营"],
-    },
-    {
-      industry: "游戏 / 动漫 / 娱乐",
-      primary: ["游戏策划", "手游", "端游", "unity3d", "unreal", "ue4", "ue5", "游戏原画", "游戏关卡", "游戏特效", "游戏引擎"],
-      secondary: ["游戏", "电竞", "二次元", "3d建模", "渲染"],
-    },
-    {
-      industry: "通信 / 物联网 / 硬件",
-      primary: ["通信", "5g", "物联", "iot", "嵌入式", "单片机", "硬件工程师", "驱动开发", "rtos", "传感器", "芯片开发"],
-      secondary: ["硬件", "电子", "电路板", "pcb"],
-    },
-    {
-      industry: "网络安全",
-      primary: ["网络安全", "信息安全", "渗透测试", "攻防演练", "secops", "防火墙", "零信任架构", "漏洞挖掘"],
-      secondary: ["安全", "漏洞", "合规", "数据安全", "soc"],
-    },
-  ];
-
-  const matchKeyword = (str: string, keyword: string): boolean => {
-    if (/^[a-z0-9+#]{1,6}$/i.test(keyword)) {
-      const escaped = keyword.replace(/[+#]/g, "\\$&");
-      const regex = new RegExp(`(?:^|[^a-z0-9+#])${escaped}(?:$|[^a-z0-9+#])`, "i");
-      return regex.test(str);
-    }
-    return str.includes(keyword.toLowerCase());
-  };
-
-  let bestIndustry = "互联网 / 软件工程";
-  let maxScore = 0;
-
-  for (const rule of rules) {
-    let score = 0;
-
-    for (const kw of rule.primary) {
-      if (matchKeyword(roleText, kw)) {
-        score += 100;
-      }
-      if (matchKeyword(jdText, kw)) {
-        score += 10;
-      }
-    }
-
-    for (const kw of rule.secondary) {
-      if (matchKeyword(roleText, kw)) {
-        score += 30;
-      }
-      if (matchKeyword(jdText, kw)) {
-        score += 3;
-      }
-    }
-
-    if (score > maxScore) {
-      maxScore = score;
-      bestIndustry = rule.industry;
-    }
-  }
-
-  return bestIndustry;
-}
 
 export function InputStep() {
   const {
@@ -167,6 +59,7 @@ export function InputStep() {
     setAnalysisResult,
     setAnalyzing,
     setAnalysisError,
+    setAiMode,
     isAnalyzing,
     analysisError,
     setCurrentStep,
@@ -179,13 +72,118 @@ export function InputStep() {
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const jdFileInputRef = useRef<HTMLInputElement | null>(null);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const dragCounter = useRef(0);
+  const jdDragCounter = useRef(0);
 
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  const [uploadingJd, setUploadingJd] = useState(false);
+  const [jdErrorMsg, setJdErrorMsg] = useState<string | null>(null);
+  const [jdSuccessMsg, setJdSuccessMsg] = useState<string | null>(null);
+  const [jdImagePreview, setJdImagePreview] = useState<string | null>(null);
+  const [isDraggingJd, setIsDraggingJd] = useState(false);
+
   const [showAllIndustries, setShowAllIndustries] = useState(false);
+  const [detectedToast, setDetectedToast] = useState<string | null>(null);
+
+  const triggerSmartDetection = (targetRole: string, jobDescription: string) => {
+    const detected = detectIndustrySmart(targetRole, jobDescription);
+    setUserInput({ industry: detected });
+    setDetectedToast(`✨ 已为您准确识别行业：${detected}`);
+    setTimeout(() => setDetectedToast(null), 4000);
+  };
+
+  const processJdFile = async (file: File) => {
+    setUploadingJd(true);
+    setJdErrorMsg(null);
+    setJdSuccessMsg(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/parse-jd-image", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "识别 JD 图片/文件失败");
+      }
+
+      if (data.text) {
+        setUserInput({ jobDescription: data.text });
+
+        const detectedIndustry = detectIndustrySmart(userInput.targetRole, data.text);
+        if (detectedIndustry && detectedIndustry !== userInput.industry) {
+          setUserInput({ industry: detectedIndustry });
+          setDetectedToast(`✨ 已智能提取并精准适配目标行业：${detectedIndustry}`);
+          setTimeout(() => setDetectedToast(null), 4000);
+        }
+
+        if (data.isImage && data.dataUrl) {
+          setJdImagePreview(data.dataUrl);
+          setJdSuccessMsg(`🎉 成功通过 AI 视觉识别为您提炼截图中 ${data.text.length} 字岗位要求！`);
+        } else {
+          setJdSuccessMsg(`🎉 成功解析并提取 JD 岗位要求 (${data.text.length} 字)！`);
+        }
+      }
+    } catch (err) {
+      setJdErrorMsg(err instanceof Error ? err.message : "识别 JD 图片/文件失败，请重试或直接粘贴文本");
+    } finally {
+      setUploadingJd(false);
+      if (jdFileInputRef.current) {
+        jdFileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleJdFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await processJdFile(file);
+    }
+  };
+
+  const handleJdDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    jdDragCounter.current += 1;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDraggingJd(true);
+    }
+  };
+
+  const handleJdDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleJdDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    jdDragCounter.current -= 1;
+    if (jdDragCounter.current === 0) {
+      setIsDraggingJd(false);
+    }
+  };
+
+  const handleJdDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingJd(false);
+    jdDragCounter.current = 0;
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      await processJdFile(file);
+    }
+  };
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -415,8 +413,45 @@ export function InputStep() {
       </div>
 
       {analysisError && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {analysisError}
+        <div className="mb-5 rounded-xl border border-red-200 bg-red-50/95 p-4 text-sm text-red-900 shadow-sm animate-in fade-in duration-200">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+            <div className="space-y-2 flex-1">
+              <div className="font-bold text-red-950 text-base">
+                {analysisError.includes("429") || analysisError.includes("quota") || analysisError.includes("额度")
+                  ? "⚠️ 大模型 API Key 额度已用尽 (HTTP 429)"
+                  : "❌ AI 分析请求失败"}
+              </div>
+              <p className="text-xs text-red-800 leading-relaxed font-mono bg-white/80 p-2.5 rounded-lg border border-red-200/80">
+                {analysisError}
+              </p>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <Link href="/settings">
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs gap-1.5 h-8">
+                    <Settings className="h-3.5 w-3.5" />
+                    ⚙️ 前往 AI 配置更换 Key
+                  </Button>
+                </Link>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      await fetch("/api/settings", { method: "DELETE" });
+                      setAiMode("mock");
+                      setAnalysisError(null);
+                    } catch {
+                      // ignore
+                    }
+                  }}
+                  className="bg-white hover:bg-neutral-50 text-neutral-800 font-semibold text-xs border-neutral-300 gap-1.5 h-8 shadow-2xs"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 text-blue-600" />
+                  🔄 一键切回 Mock 免费演示模式
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -444,10 +479,7 @@ export function InputStep() {
                 </Label>
                 <button
                   type="button"
-                  onClick={() => {
-                    const detected = detectIndustrySmart(userInput.targetRole, userInput.jobDescription);
-                    setUserInput({ industry: detected });
-                  }}
+                  onClick={() => triggerSmartDetection(userInput.targetRole, userInput.jobDescription)}
                   className="text-[11px] text-blue-600 hover:text-blue-700 font-medium flex items-center gap-0.5 hover:underline"
                 >
                   <Sparkles className="h-3 w-3" />
@@ -461,20 +493,19 @@ export function InputStep() {
                 onChange={(e) => setUserInput({ industry: e.target.value })}
               />
 
+              {/* Smart detection toast hint */}
+              {detectedToast && (
+                <div className="text-[11px] text-blue-700 font-medium bg-blue-50 border border-blue-200/80 rounded-md px-2.5 py-1 animate-in fade-in slide-in-from-top-1 duration-200 flex items-center gap-1.5">
+                  <Sparkles className="h-3 w-3 text-blue-600 shrink-0" />
+                  <span>{detectedToast}</span>
+                </div>
+              )}
+
               {/* Popular tags preview */}
               <div className="space-y-2 pt-1">
                 <div className="flex flex-wrap items-center justify-between gap-1.5">
                   <div className="flex flex-wrap gap-1.5">
-                    {[
-                      "互联网 / 软件工程",
-                      "人工智能 / AIGC",
-                      "互联网 / SaaS",
-                      "芯片 / 半导体",
-                      "新能源 / 智能汽车",
-                      "金融科技 / FinTech",
-                      "电商 / 跨境电商",
-                      "医疗健康",
-                    ].map((ind) => (
+                    {POPULAR_INDUSTRIES.map((ind) => (
                       <button
                         key={ind}
                         type="button"
@@ -509,65 +540,7 @@ export function InputStep() {
                 {/* Expanded Full Categorized Industry Panel */}
                 {showAllIndustries && (
                   <div className="mt-2.5 rounded-lg border border-neutral-200/90 bg-neutral-50/70 p-3 space-y-3 animate-in fade-in duration-200">
-                    {[
-                      {
-                        category: "IT / 互联网 / 科技",
-                        items: [
-                          "人工智能 / AIGC",
-                          "互联网 / SaaS",
-                          "软件 / 信息技术",
-                          "游戏 / 动漫 / 娱乐",
-                          "网络安全",
-                          "区块链 / Web3",
-                        ],
-                      },
-                      {
-                        category: "电子 / 制造 / 汽车",
-                        items: [
-                          "芯片 / 半导体",
-                          "新能源 / 智能汽车",
-                          "工业自动化 / 机器人",
-                          "消费电子 / 智能硬件",
-                          "高端装备 / 制造",
-                          "航空航天 / 军工",
-                        ],
-                      },
-                      {
-                        category: "金融 / 商业 / 企服",
-                        items: [
-                          "金融科技 / FinTech",
-                          "银行 / 证券 / 基金",
-                          "投资 / 创投 / PE",
-                          "专业咨询 / 审计 / 法律",
-                        ],
-                      },
-                      {
-                        category: "消费 / 电商 / 传媒",
-                        items: [
-                          "电商 / 跨境电商",
-                          "新零售 / 快消品",
-                          "物流 / 供应链",
-                          "广告 / 传媒 / 公关",
-                        ],
-                      },
-                      {
-                        category: "医疗 / 能源 / 材料",
-                        items: [
-                          "医疗健康 / 生物医药",
-                          "医疗器械",
-                          "清洁能源 / 环保",
-                          "化工 / 新材料",
-                        ],
-                      },
-                      {
-                        category: "服务 / 教育 / 地产",
-                        items: [
-                          "在线教育 / EdTech",
-                          "房地产 / 建筑设计",
-                          "文旅 / 生活服务",
-                        ],
-                      },
-                    ].map((group) => (
+                    {ALL_INDUSTRY_GROUPS.map((group) => (
                       <div key={group.category} className="space-y-1.5">
                         <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider block">
                           {group.category}
@@ -755,18 +728,117 @@ export function InputStep() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">目标 JD</CardTitle>
-            <CardDescription>粘贴完整岗位描述，Agent 将解析职责与要求</CardDescription>
+        <Card
+          onDragEnter={handleJdDragEnter}
+          onDragOver={handleJdDragOver}
+          onDragLeave={handleJdDragLeave}
+          onDrop={handleJdDrop}
+          className={`relative overflow-hidden transition-all ${
+            isDraggingJd
+              ? "border-2 border-dashed border-purple-500 bg-purple-50/80 shadow-md"
+              : ""
+          }`}
+        >
+          <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0 flex-wrap gap-2">
+            <div>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <span>目标 JD</span>
+                <span className="text-[10px] font-normal text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                  ✨ 支持图片/截图 AI 识别 & 文本粘贴
+                </span>
+              </CardTitle>
+              <CardDescription>
+                支持粘贴文字或直接上传岗位截图/图片，Agent 将视觉识别并解析岗位要求
+              </CardDescription>
+            </div>
+            <div>
+              <input
+                ref={jdFileInputRef}
+                type="file"
+                accept="image/*,.png,.jpg,.jpeg,.webp,.pdf,.docx,.doc,.txt"
+                className="hidden"
+                onChange={handleJdFileUpload}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uploadingJd}
+                onClick={() => jdFileInputRef.current?.click()}
+                className="bg-purple-50/60 hover:bg-purple-100/80 border-purple-200 text-purple-700 hover:text-purple-900 text-xs gap-1.5 shadow-2xs"
+              >
+                {uploadingJd ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-purple-600" />
+                    AI 识别截图/图片中...
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon className="h-3.5 w-3.5 text-purple-600" />
+                    上传 JD 截图 / 图片
+                  </>
+                )}
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent>
-            <Textarea
-              className="min-h-[200px] font-mono text-xs leading-relaxed"
-              placeholder="粘贴岗位 JD..."
-              value={userInput.jobDescription}
-              onChange={(e) => setUserInput({ jobDescription: e.target.value })}
-            />
+          <CardContent className="space-y-2">
+            {jdSuccessMsg && (
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800 flex items-center justify-between shadow-2xs animate-in fade-in duration-200">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  {jdSuccessMsg}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setJdSuccessMsg(null)}
+                  className="text-emerald-600 hover:text-emerald-900 text-xs font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            {jdErrorMsg && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-700 flex items-center justify-between shadow-2xs">
+                <span>❌ <strong>识别失败：</strong>{jdErrorMsg}</span>
+                <button
+                  type="button"
+                  onClick={() => setJdErrorMsg(null)}
+                  className="text-red-500 hover:text-red-800 text-xs font-bold ml-2"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            <div className="relative">
+              <Textarea
+                className="min-h-[200px] font-mono text-xs leading-relaxed"
+                placeholder="粘贴岗位 JD 描述，或直接拖拽/点击右上角“上传 JD 截图 / 图片”自动识别岗位要求..."
+                value={userInput.jobDescription}
+                onChange={(e) => setUserInput({ jobDescription: e.target.value })}
+              />
+              {jdImagePreview && (
+                <div className="absolute right-3 bottom-3 border border-purple-200 rounded-lg bg-white/95 p-1.5 shadow-md flex items-center gap-2 max-w-[220px]">
+                  <img
+                    src={jdImagePreview}
+                    alt="JD Screenshot Preview"
+                    className="h-10 w-10 object-cover rounded border border-purple-100 shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10.5px] font-bold text-purple-950 truncate">已导入 JD 截图</p>
+                    <p className="text-[9.5px] text-purple-600 truncate">AI 视觉识别解析成功</p>
+                  </div>
+                  <button
+                    type="button"
+                    title="移除图片预览"
+                    onClick={() => setJdImagePreview(null)}
+                    className="text-neutral-400 hover:text-neutral-600 p-0.5 shrink-0"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 

@@ -5,6 +5,7 @@ export interface AIConfig {
   apiKey: string;
   baseUrl: string;
   model: string;
+  visionModel: string;
   provider: string;
 }
 
@@ -18,6 +19,7 @@ export function getAIConfig(): AIConfig {
     apiKey,
     baseUrl: (process.env.LLM_BASE_URL?.trim() || "https://api.openai.com/v1").replace(/\/$/, ""),
     model: process.env.LLM_MODEL?.trim() || "gpt-4o-mini",
+    visionModel: process.env.LLM_VISION_MODEL?.trim() || process.env.VISION_MODEL?.trim() || process.env.LLM_MODEL?.trim() || "gpt-4o-mini",
     provider: process.env.LLM_PROVIDER?.trim() || "openai-compatible",
   };
 }

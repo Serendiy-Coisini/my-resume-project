@@ -445,7 +445,10 @@ export const LegoCanvas: React.FC = () => {
         className="transition-transform origin-top duration-75 flex flex-col gap-8 items-center"
         style={{ transform: `scale(${scale})` }}
       >
-        {(schema?.componentsTree || []).map((page) => (
+        {(schema?.componentsTree || []).map((page) => {
+          const pagePadding = schema.css?.pagePadding || { top: 0, right: 0, bottom: 0, left: 0 };
+          const hasPadding = pagePadding.top > 0 || pagePadding.right > 0 || pagePadding.bottom > 0 || pagePadding.left > 0;
+          return (
           <div
             key={page.id || 'page-1'}
             ref={pageRef}
@@ -455,8 +458,23 @@ export const LegoCanvas: React.FC = () => {
               width: `${schema.css?.width || 820}px`,
               height: `${canvasHeight}px`
             }}
+            data-page-padding={JSON.stringify(pagePadding)}
             onMouseDown={handlePageMouseDown}
           >
+            {/* Page Padding / Margin Safe Zone Guides */}
+            {hasPadding && (
+              <div
+                data-canvas-ui="true"
+                className="absolute pointer-events-none z-30"
+                style={{
+                  top: `${pagePadding.top}px`,
+                  left: `${pagePadding.left}px`,
+                  right: `${pagePadding.right}px`,
+                  bottom: `${pagePadding.bottom}px`,
+                  border: '1px dashed rgba(99, 102, 241, 0.35)',
+                }}
+              />
+            )}
             {/* Rubberband Selection Box */}
             {selectionBoxStyle && (
               <div
@@ -557,7 +575,8 @@ export const LegoCanvas: React.FC = () => {
               );
             })}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Context Menu */}

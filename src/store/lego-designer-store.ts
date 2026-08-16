@@ -35,7 +35,8 @@ export const DEFAULT_LEGO_SCHEMA: IHJSchema = {
     opacity: 1,
     backgroundImage: '',
     fontFamily: 'Inter, sans-serif',
-    themeColor: '#2563eb'
+    themeColor: '#2563eb',
+    pagePadding: { top: 0, right: 0, bottom: 0, left: 0 }
   },
   config: {
     title: '我的积木简历'
@@ -80,6 +81,8 @@ interface LegoDesignerState {
   alignWidgets: (type: 'left' | 'centerX' | 'right' | 'top' | 'centerY' | 'bottom' | 'distributeH' | 'distributeV', widgetIds?: string[], saveHistory?: boolean) => void;
 
   updateWidgetCss: (widgetId: string, cssUpdate: Partial<IWidgetCss>, saveHistory?: boolean) => void;
+  batchUpdateWidgetCss: (widgetIds: string[], cssUpdate: Partial<IWidgetCss>, saveHistory?: boolean) => void;
+  updatePagePadding: (paddingUpdate: Partial<{ top: number; right: number; bottom: number; left: number }>, saveHistory?: boolean) => void;
   updateWidgetDataSource: (widgetId: string, dataUpdate: Partial<IWidgetDataSource>, saveHistory?: boolean) => void;
   
   addWidget: (widget: IWidget, pageIndex?: number, saveHistory?: boolean) => void;
@@ -454,6 +457,124 @@ export const useLegoDesignerStore = create<LegoDesignerState>((set, get) => {
         if (widget) {
           widget.css = { ...widget.css, ...cssUpdate };
           break;
+        }
+      }
+
+      set({ schema: newSchema, ...historyUpdate });
+    },
+
+    batchUpdateWidgetCss: (widgetIds, cssUpdate, saveHistory = true) => {
+      if (!widgetIds || widgetIds.length === 0) return;
+      const { schema } = get();
+      const historyUpdate = saveHistory ? saveStateToHistory(schema) : {};
+      const newSchema = deepClone(schema);
+
+      for (const page of newSchema.componentsTree) {
+        if (!page.children) continue;
+        for (const widget of page.children) {
+          if (widgetIds.includes(widget.id)) {
+            widget.css = { ...widget.css, ...cssUpdate };
+          }
+        }
+      }
+
+      set({ schema: newSchema, ...historyUpdate });
+    },
+
+    updatePagePadding: (paddingUpdate, saveHistory = true) => {
+      const { schema } = get();
+      const historyUpdate = saveHistory ? saveStateToHistory(schema) : {};
+      const newSchema = deepClone(schema);
+
+      const oldPadding = newSchema.css.pagePadding || { top: 0, right: 0, bottom: 0, left: 0 };
+      const newPadding = {
+        top: Math.max(0, paddingUpdate.top !== undefined ? paddingUpdate.top : oldPadding.top),
+        right: Math.max(0, paddingUpdate.right !== undefined ? paddingUpdate.right : oldPadding.right),
+        bottom: Math.max(0, paddingUpdate.bottom !== undefined ? paddingUpdate.bottom : oldPadding.bottom),
+        left: Math.max(0, paddingUpdate.left !== undefined ? paddingUpdate.left : oldPadding.left)
+      };
+      newSchema.css.pagePadding = newPadding;
+
+      const pageWidth = newSchema.css.width || 820;
+
+      // Target usable width and left offset
+      const targetLeft = newPadding.left;
+      const targetRight = Math.max(targetLeft + 50, pageWidth - newPadding.right);
+      const targetW = targetRight - targetLeft;
+
+      for (const page of newSchema.componentsTree) {
+        if (!page.children || page.children.length === 0) continue;
+
+        // 1. Measure the current actual bounding box of content on this page
+        let minX = Infinity;
+        let maxX = -Infinity;
+        let minY = Infinity;
+
+        for (const widget of page.children) {
+          const wLeft = Number(widget.css.left) || 0;
+          const wWidth = Number(widget.css.width) || 40;
+          const wTop = Number(widget.css.top) || 0;
+
+          if (wLeft < minX) minX = wLeft;
+          if (wLeft + wWidth > maxX) maxX = wLeft + wWidth;
+          if (wTop < minY) minY = wTop;
+        }
+
+        if (!isFinite(minX) || !isFinite(maxX) || maxX <= minX) {
+          minX = oldPadding.left || 0;
+          maxX = pageWidth - (oldPadding.right || 0);
+        }
+
+        const currentW = Math.max(1, maxX - minX);
+
+        // 2. Vertical shift: align top-most element with newPadding.top
+        const deltaY = isFinite(minY) ? (newPadding.top - minY) : (newPadding.top - oldPadding.top);
+
+        // 3. Proportionally remap all widgets
+        for (const widget of page.children) {
+          const origLeft = Number(widget.css.left) || 0;
+          const origWidth = Number(widget.css.width) || 40;
+          const origHeight = Number(widget.css.height) || 40;
+          const origTop = Number(widget.css.top) || 0;
+
+          // Relative position & width in old bounding box (0 ~ 1)
+          const relX = (origLeft - minX) / currentW;
+          const relW = origWidth / currentW;
+
+          // Shift top
+          widget.css.top = Math.max(0, Math.round(origTop + deltaY));
+
+          // 1. Thin vertical decorative/timeline lines (width <= 8px with larger height)
+          const isThinVerticalLine = origWidth <= 8 && origHeight > 15;
+
+          // 2. Small dots, bullets, icons, avatars, QR codes
+          const isSmallDotOrBadge = origWidth <= 24;
+          const isAvatarOrSquare =
+            widget.componentName.startsWith('hj-avatar') ||
+            widget.componentName === 'hj-icon' ||
+            widget.componentName === 'hj-circle' ||
+            widget.componentName === 'hj-other-2' ||
+            (Math.abs(origWidth - origHeight) <= 4 && origWidth < 120);
+
+          if (isThinVerticalLine || isSmallDotOrBadge || isAvatarOrSquare) {
+            // Keep exact pixel width & height, position its center proportionally
+            const relCenterX = (origLeft + origWidth / 2 - minX) / currentW;
+            const newCenterX = targetLeft + relCenterX * targetW;
+            widget.css.left = Math.round(newCenterX - origWidth / 2);
+            widget.css.width = origWidth;
+          } else {
+            // General text, section dividers, cards, backgrounds
+            const newLeft = Math.round(targetLeft + relX * targetW);
+            const newWidth = Math.max(1, Math.round(relW * targetW));
+            widget.css.left = newLeft;
+            widget.css.width = Math.min(newWidth, targetRight - newLeft);
+          }
+        }
+
+        // 4. Update canvas height if bottom elements expand
+        const maxBottom = Math.max(...page.children.map((w) => (Number(w.css.top) || 0) + (Number(w.css.height) || 40))) + newPadding.bottom;
+        if (maxBottom > (newSchema.css.height || 1160)) {
+          newSchema.css.height = maxBottom;
         }
       }
 

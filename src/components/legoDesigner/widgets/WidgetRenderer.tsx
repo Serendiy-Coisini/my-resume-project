@@ -235,19 +235,44 @@ export const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget }) => {
     const time = (dataSource.workTime || '') as string;
     const content = (dataSource.workContent || dataSource.text || '') as string;
     const align = (css.textAlign as React.CSSProperties['textAlign']) || 'left';
+
+    // Header title styles (defaults to bold title, independent of body css.fontWeight)
+    const headerFontSize = dataSource.headerFontSize !== undefined ? Number(dataSource.headerFontSize) : 13.5;
+    const headerFontWeight = dataSource.headerFontWeight !== undefined ? (dataSource.headerFontWeight as string | number) : 'bold';
+    const headerFontColor = dataSource.headerFontColor !== undefined ? (dataSource.headerFontColor as string) : (css.fontColor || '#0f172a');
+
+    // Header time styles (defaults to bold/semibold time)
+    const headerTimeFontSize = dataSource.headerTimeFontSize !== undefined ? Number(dataSource.headerTimeFontSize) : 12.5;
+    const headerTimeFontWeight = dataSource.headerTimeFontWeight !== undefined ? (dataSource.headerTimeFontWeight as string | number) : 'bold';
+    const headerTimeFontColor = dataSource.headerTimeFontColor !== undefined ? (dataSource.headerTimeFontColor as string) : '#475569';
+
     return (
       <div style={{ ...style, flexDirection: 'column', gap: '4px', padding: '6px 8px', alignItems: 'stretch', justifyContent: 'flex-start' }}>
         {(company || role || time) && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontWeight: css.fontWeight || 'bold', fontFamily: css.fontFamily, fontSize: '13.5px', color: css.fontColor || '#0f172a' }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            width: '100%',
+            fontWeight: headerFontWeight,
+            fontFamily: css.fontFamily,
+            fontSize: `${headerFontSize}px`,
+            color: headerFontColor
+          }}>
             <span>{renderFormattedText(company)} {role ? `· ${role}` : ''}</span>
             {time && (
-              <span style={{ color: '#475569', fontWeight: 'bold', fontSize: '12.5px', textAlign: 'right' }}>
+              <span style={{
+                color: headerTimeFontColor,
+                fontWeight: headerTimeFontWeight,
+                fontSize: `${headerTimeFontSize}px`,
+                textAlign: 'right'
+              }}>
                 {time}
               </span>
             )}
           </div>
         )}
-        <div style={{ fontSize: css.fontSize ? `${css.fontSize}px` : '12.5px', fontWeight: css.fontWeight, fontFamily: css.fontFamily, color: css.fontColor || '#334155', lineHeight: 1.6, whiteSpace: 'pre-wrap', textAlign: align, width: '100%' }}>
+        <div style={{ fontSize: css.fontSize ? `${css.fontSize}px` : '12.5px', fontWeight: css.fontWeight || 'normal', fontFamily: css.fontFamily, color: css.fontColor || '#334155', lineHeight: 1.6, whiteSpace: 'pre-wrap', textAlign: align, width: '100%' }}>
           {content ? renderFormattedText(content) : '双击/在右侧编辑经历内容'}
         </div>
       </div>

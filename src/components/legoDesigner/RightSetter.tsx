@@ -20,7 +20,8 @@ import {
   Star,
   QrCode,
   Paintbrush,
-  Briefcase
+  Briefcase,
+  SlidersHorizontal
 } from 'lucide-react';
 
 interface RightSetterProps {
@@ -42,7 +43,10 @@ export const RightSetter: React.FC<RightSetterProps> = ({
     selectedWidgetIds,
     isFormatPainterActive,
     toggleFormatPainter,
-    alignWidgets
+    alignWidgets,
+    schema,
+    batchUpdateWidgetCss,
+    updatePagePadding
   } = useLegoDesignerStore();
   const { setUserInput } = useResumeStore();
 
@@ -190,24 +194,264 @@ export const RightSetter: React.FC<RightSetterProps> = ({
     );
   }
 
-  if (!selectedWidgetId || !selectedWidget) {
+  // Multi-select batch editing panel
+  if (selectedWidgetIds.length > 1) {
+    const pagePadding = schema?.css?.pagePadding || { top: 0, right: 0, bottom: 0, left: 0 };
     return (
       <div
-        className="h-full bg-white border-l border-slate-200 flex flex-col items-center justify-center p-6 text-center select-none shrink-0 relative overflow-hidden transition-all"
+        className="h-full bg-white border-l border-slate-200 flex flex-col select-none shrink-0 overflow-hidden transition-all"
         style={{ width: `${width}px` }}
       >
-        <button
-          className="absolute top-3 left-2 p-1 hover:bg-slate-200 rounded text-slate-500"
-          onClick={onToggleCollapse}
-          title="折叠右侧面板"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
-          <Palette className="w-6 h-6" />
+        <div className="p-3.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+          <button
+            className="p-1 hover:bg-slate-200 rounded text-slate-500 mr-1"
+            onClick={onToggleCollapse}
+            title="折叠右侧面板"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+          <h3 className="text-xs font-bold text-slate-800 flex items-center gap-1.5 truncate flex-1">
+            <span className="w-2 h-2 rounded-full bg-purple-600 shrink-0"></span>
+            批量样式编辑
+          </h3>
+          <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">
+            已选 {selectedWidgetIds.length} 项
+          </span>
         </div>
-        <h4 className="text-sm font-semibold text-slate-700 mb-1">未选中任何积木</h4>
-        <p className="text-xs text-slate-400">点击画布上的任意积木模块，在此处配置具体文本与样式属性。</p>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-5 text-xs">
+          {/* Batch Font Family */}
+          <div className="space-y-2">
+            <label className="font-semibold text-slate-700 flex items-center gap-1">
+              <Type className="w-3.5 h-3.5 text-purple-600" /> 统一字体样式
+            </label>
+            <div>
+              <span className="text-[10px] text-slate-400">字体 (Font Family)</span>
+              <select
+                className="w-full p-1.5 border border-slate-200 rounded text-slate-800 text-xs bg-white cursor-pointer font-medium"
+                defaultValue=""
+                onChange={(e) => { if (e.target.value) batchUpdateWidgetCss(selectedWidgetIds, { fontFamily: e.target.value }); }}
+              >
+                <option value="" disabled>选择字体统一应用...</option>
+                <option value='system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif'>默认无衬线 (系统黑体)</option>
+                <option value='"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif'>思源黑体</option>
+                <option value='"Noto Serif SC", "SimSun", "Songti SC", serif'>思源宋体</option>
+                <option value='Inter, sans-serif'>Inter (现代商务)</option>
+                <option value='"SimSun", "STSong", serif'>标准宋体 (公文风)</option>
+                <option value='"KaiTi", "STKaiti", cursive'>手书楷体</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <span className="text-[10px] text-slate-400">字号 (px)</span>
+                <input
+                  type="number"
+                  className="w-full p-1.5 border border-slate-200 rounded text-slate-800"
+                  placeholder="统一字号"
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    if (v > 0) batchUpdateWidgetCss(selectedWidgetIds, { fontSize: v });
+                  }}
+                />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400">文字颜色</span>
+                <div className="flex gap-1">
+                  <input
+                    type="color"
+                    className="w-8 h-7 border border-slate-200 rounded cursor-pointer"
+                    defaultValue="#334155"
+                    onChange={(e) => batchUpdateWidgetCss(selectedWidgetIds, { fontColor: e.target.value })}
+                  />
+                  <input
+                    type="text"
+                    className="w-full p-1 border border-slate-200 rounded text-slate-800 text-[11px]"
+                    placeholder="#334155"
+                    onChange={(e) => { if (e.target.value.startsWith('#')) batchUpdateWidgetCss(selectedWidgetIds, { fontColor: e.target.value }); }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Batch Bold & Alignment */}
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[11px] text-slate-600">字重</span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  className="px-2 py-1 text-[11px] rounded border bg-slate-100 text-slate-700 border-slate-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-1 cursor-pointer transition-colors"
+                  onClick={() => batchUpdateWidgetCss(selectedWidgetIds, { fontWeight: 'bold' })}
+                >
+                  <Bold className="w-3.5 h-3.5" /> 全部加粗
+                </button>
+                <button
+                  type="button"
+                  className="px-2 py-1 text-[11px] rounded border bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
+                  onClick={() => batchUpdateWidgetCss(selectedWidgetIds, { fontWeight: 'normal' })}
+                >
+                  常规
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[11px] text-slate-600">对齐方式</span>
+              <div className="flex bg-slate-100 rounded p-0.5 border border-slate-200">
+                <button className="p-1 rounded cursor-pointer text-slate-500 hover:bg-white hover:shadow-sm hover:text-blue-600" onClick={() => batchUpdateWidgetCss(selectedWidgetIds, { textAlign: 'left' })}>
+                  <AlignLeft className="w-3.5 h-3.5" />
+                </button>
+                <button className="p-1 rounded cursor-pointer text-slate-500 hover:bg-white hover:shadow-sm hover:text-blue-600" onClick={() => batchUpdateWidgetCss(selectedWidgetIds, { textAlign: 'center' })}>
+                  <AlignCenter className="w-3.5 h-3.5" />
+                </button>
+                <button className="p-1 rounded cursor-pointer text-slate-500 hover:bg-white hover:shadow-sm hover:text-blue-600" onClick={() => batchUpdateWidgetCss(selectedWidgetIds, { textAlign: 'right' })}>
+                  <AlignRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Batch Line Height */}
+            <div className="pt-1">
+              <span className="text-[10px] text-slate-400">行高 (Line Height)</span>
+              <input
+                type="number"
+                step="0.1"
+                min="1"
+                max="3"
+                className="w-full p-1.5 border border-slate-200 rounded text-slate-800"
+                placeholder="统一行高 (如 1.6)"
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  if (v > 0) batchUpdateWidgetCss(selectedWidgetIds, { lineHeight: v });
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Page Padding Section (also available here) */}
+          <div className="space-y-2.5 pt-3 border-t border-slate-100">
+            <label className="font-semibold text-slate-700 flex items-center gap-1">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600" /> 页面间距 / 留白
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <span className="text-[10px] text-slate-400">上边距 (px)</span>
+                <input type="number" min="0" max="120" className="w-full p-1.5 border border-slate-200 rounded text-slate-800"
+                  value={pagePadding.top} onChange={(e) => updatePagePadding({ top: Math.max(0, Number(e.target.value) || 0) })} />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400">下边距 (px)</span>
+                <input type="number" min="0" max="120" className="w-full p-1.5 border border-slate-200 rounded text-slate-800"
+                  value={pagePadding.bottom} onChange={(e) => updatePagePadding({ bottom: Math.max(0, Number(e.target.value) || 0) })} />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400">左边距 (px)</span>
+                <input type="number" min="0" max="120" className="w-full p-1.5 border border-slate-200 rounded text-slate-800"
+                  value={pagePadding.left} onChange={(e) => updatePagePadding({ left: Math.max(0, Number(e.target.value) || 0) })} />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400">右边距 (px)</span>
+                <input type="number" min="0" max="120" className="w-full p-1.5 border border-slate-200 rounded text-slate-800"
+                  value={pagePadding.right} onChange={(e) => updatePagePadding({ right: Math.max(0, Number(e.target.value) || 0) })} />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              <span className="text-[10px] text-slate-400">快捷预设:</span>
+              <button type="button" className="px-2 py-0.5 text-[10px] bg-slate-50 border border-slate-200 rounded hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition-colors"
+                onClick={() => updatePagePadding({ top: 0, right: 0, bottom: 0, left: 0 })}>无留白</button>
+              <button type="button" className="px-2 py-0.5 text-[10px] bg-slate-50 border border-slate-200 rounded hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition-colors"
+                onClick={() => updatePagePadding({ top: 20, right: 20, bottom: 20, left: 20 })}>窄边距 (20)</button>
+              <button type="button" className="px-2 py-0.5 text-[10px] bg-slate-50 border border-slate-200 rounded hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition-colors"
+                onClick={() => updatePagePadding({ top: 35, right: 35, bottom: 35, left: 35 })}>标准 (35)</button>
+              <button type="button" className="px-2 py-0.5 text-[10px] bg-slate-50 border border-slate-200 rounded hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition-colors"
+                onClick={() => updatePagePadding({ top: 50, right: 50, bottom: 50, left: 50 })}>宽边距 (50)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!selectedWidgetId || !selectedWidget) {
+    const pagePadding = schema?.css?.pagePadding || { top: 0, right: 0, bottom: 0, left: 0 };
+    return (
+      <div
+        className="h-full bg-white border-l border-slate-200 flex flex-col select-none shrink-0 relative overflow-hidden transition-all"
+        style={{ width: `${width}px` }}
+      >
+        <div className="p-3.5 border-b border-slate-200 bg-slate-50 flex items-center">
+          <button
+            className="p-1 hover:bg-slate-200 rounded text-slate-500 mr-2"
+            onClick={onToggleCollapse}
+            title="折叠右侧面板"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+          <h3 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+            <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600" /> 页面设置
+          </h3>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-5 text-xs">
+          <div className="flex flex-col items-center text-center pt-2 pb-3">
+            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-2">
+              <Palette className="w-5 h-5" />
+            </div>
+            <h4 className="text-sm font-semibold text-slate-700 mb-0.5">未选中积木</h4>
+            <p className="text-[11px] text-slate-400">点击画布积木模块配置属性，或在此调整页面间距。</p>
+          </div>
+
+          {/* Page Padding / Margin Controls */}
+          <div className="space-y-2.5 p-3 bg-indigo-50/50 border border-indigo-200/60 rounded-xl">
+            <label className="font-bold text-slate-800 flex items-center gap-1.5 text-xs">
+              <SlidersHorizontal className="w-4 h-4 text-indigo-600" /> 页面间距 / 留白 (Padding)
+            </label>
+            <p className="text-[10px] text-slate-500 leading-tight">调整简历四方向的安全留白，确保内容不贴近纸张边缘。画布中显示紫色虚线参考线。</p>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <span className="text-[10px] text-slate-500 font-medium">上边距 (px)</span>
+                <input type="number" min="0" max="120" step="5"
+                  className="w-full p-1.5 mt-0.5 border border-slate-300 rounded text-slate-800 text-xs bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  value={pagePadding.top}
+                  onChange={(e) => updatePagePadding({ top: Math.max(0, Number(e.target.value) || 0) })} />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 font-medium">下边距 (px)</span>
+                <input type="number" min="0" max="120" step="5"
+                  className="w-full p-1.5 mt-0.5 border border-slate-300 rounded text-slate-800 text-xs bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  value={pagePadding.bottom}
+                  onChange={(e) => updatePagePadding({ bottom: Math.max(0, Number(e.target.value) || 0) })} />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 font-medium">左边距 (px)</span>
+                <input type="number" min="0" max="120" step="5"
+                  className="w-full p-1.5 mt-0.5 border border-slate-300 rounded text-slate-800 text-xs bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  value={pagePadding.left}
+                  onChange={(e) => updatePagePadding({ left: Math.max(0, Number(e.target.value) || 0) })} />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 font-medium">右边距 (px)</span>
+                <input type="number" min="0" max="120" step="5"
+                  className="w-full p-1.5 mt-0.5 border border-slate-300 rounded text-slate-800 text-xs bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  value={pagePadding.right}
+                  onChange={(e) => updatePagePadding({ right: Math.max(0, Number(e.target.value) || 0) })} />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              <span className="text-[10px] text-slate-400">快捷预设:</span>
+              <button type="button" className="px-2 py-0.5 text-[10px] bg-white border border-slate-200 rounded hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition-colors font-medium"
+                onClick={() => updatePagePadding({ top: 0, right: 0, bottom: 0, left: 0 })}>无留白</button>
+              <button type="button" className="px-2 py-0.5 text-[10px] bg-white border border-slate-200 rounded hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition-colors font-medium"
+                onClick={() => updatePagePadding({ top: 20, right: 20, bottom: 20, left: 20 })}>窄边距 (20px)</button>
+              <button type="button" className="px-2 py-0.5 text-[10px] bg-white border border-slate-200 rounded hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition-colors font-medium"
+                onClick={() => updatePagePadding({ top: 35, right: 35, bottom: 35, left: 35 })}>标准 (35px)</button>
+              <button type="button" className="px-2 py-0.5 text-[10px] bg-white border border-slate-200 rounded hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition-colors font-medium"
+                onClick={() => updatePagePadding({ top: 50, right: 50, bottom: 50, left: 50 })}>宽边距 (50px)</button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -496,6 +740,71 @@ export const RightSetter: React.FC<RightSetterProps> = ({
                   });
                 }}
               />
+            </div>
+
+            {/* Header Title Style Controls */}
+            <div className="pt-2 mt-1 border-t border-slate-200/80 space-y-2">
+              <span className="text-[10.5px] text-slate-600 font-bold flex items-center gap-1">🎨 顶栏标题样式</span>
+              <div className="grid grid-cols-3 gap-1.5">
+                <div>
+                  <span className="text-[10px] text-slate-400">标题字号</span>
+                  <input type="number" min="10" max="24" step="0.5"
+                    className="w-full p-1 border border-slate-200 rounded text-slate-800 text-[11px]"
+                    value={(dataSource.headerFontSize as number) || 13.5}
+                    onChange={(e) => updateWidgetDataSource(selectedWidget.id, { headerFontSize: Number(e.target.value) || 13.5 })} />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400">标题字重</span>
+                  <select
+                    className="w-full p-1 border border-slate-200 rounded text-slate-800 text-[11px] bg-white cursor-pointer"
+                    value={String(dataSource.headerFontWeight || 'bold')}
+                    onChange={(e) => updateWidgetDataSource(selectedWidget.id, { headerFontWeight: e.target.value })}
+                  >
+                    <option value="normal">常规</option>
+                    <option value="500">中等</option>
+                    <option value="600">半粗</option>
+                    <option value="bold">加粗</option>
+                  </select>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400">标题颜色</span>
+                  <input type="color"
+                    className="w-full h-7 border border-slate-200 rounded cursor-pointer"
+                    value={(dataSource.headerFontColor as string) || '#0f172a'}
+                    onChange={(e) => updateWidgetDataSource(selectedWidget.id, { headerFontColor: e.target.value })} />
+                </div>
+              </div>
+
+              <span className="text-[10.5px] text-slate-600 font-bold flex items-center gap-1">⏰ 时间部分样式</span>
+              <div className="grid grid-cols-3 gap-1.5">
+                <div>
+                  <span className="text-[10px] text-slate-400">时间字号</span>
+                  <input type="number" min="9" max="20" step="0.5"
+                    className="w-full p-1 border border-slate-200 rounded text-slate-800 text-[11px]"
+                    value={(dataSource.headerTimeFontSize as number) || 12.5}
+                    onChange={(e) => updateWidgetDataSource(selectedWidget.id, { headerTimeFontSize: Number(e.target.value) || 12.5 })} />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400">时间字重</span>
+                  <select
+                    className="w-full p-1 border border-slate-200 rounded text-slate-800 text-[11px] bg-white cursor-pointer"
+                    value={String(dataSource.headerTimeFontWeight || 'bold')}
+                    onChange={(e) => updateWidgetDataSource(selectedWidget.id, { headerTimeFontWeight: e.target.value })}
+                  >
+                    <option value="normal">常规</option>
+                    <option value="500">中等</option>
+                    <option value="600">半粗</option>
+                    <option value="bold">加粗</option>
+                  </select>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400">时间颜色</span>
+                  <input type="color"
+                    className="w-full h-7 border border-slate-200 rounded cursor-pointer"
+                    value={(dataSource.headerTimeFontColor as string) || '#475569'}
+                    onChange={(e) => updateWidgetDataSource(selectedWidget.id, { headerTimeFontColor: e.target.value })} />
+                </div>
+              </div>
             </div>
           </div>
         )}

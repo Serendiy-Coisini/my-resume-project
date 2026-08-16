@@ -23,6 +23,16 @@ export function printLegoCanvas() {
     return;
   }
 
+  // Read pagePadding from the canvas page element's data attribute (set by React)
+  const pagePaddingAttr = canvasElement.getAttribute('data-page-padding');
+  let pagePaddingCSS = '';
+  if (pagePaddingAttr) {
+    try {
+      const pp = JSON.parse(pagePaddingAttr);
+      pagePaddingCSS = `padding: ${pp.top || 0}px ${pp.right || 0}px ${pp.bottom || 0}px ${pp.left || 0}px !important;`;
+    } catch { /* ignore */ }
+  }
+
   // Clone canvas content
   const clone = canvasElement.cloneNode(true) as HTMLElement;
 
@@ -85,6 +95,7 @@ export function printLegoCanvas() {
             border: none !important;
             page-break-after: always;
             box-sizing: border-box;
+            ${pagePaddingCSS}
           }
           #lego-canvas-page * {
             box-sizing: border-box;

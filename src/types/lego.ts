@@ -45,6 +45,12 @@ export interface IWidgetDataSource {
   rate?: number;
   maxRate?: number;
   shape?: string;
+  headerFontSize?: number;
+  headerFontWeight?: string | number;
+  headerFontColor?: string;
+  headerTimeFontSize?: number;
+  headerTimeFontWeight?: string | number;
+  headerTimeFontColor?: string;
   [key: string]: unknown;
 }
 
@@ -90,6 +96,7 @@ export interface IHJSchema {
     backgroundImage?: string;
     fontFamily?: string;
     themeColor?: string;
+    pagePadding?: { top: number; right: number; bottom: number; left: number };
     [key: string]: unknown;
   };
   config: {
